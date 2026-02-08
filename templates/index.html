@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Stats Section -->
+    <div class="glass-card">
+        <h3>Repair Status</h3>
+        <div style="display: flex; gap: 20px; margin-top: 15px;">
+            <div style="text-align: center;">
+                <h2 style="color: var(--accent-cyan); font-size: 3rem;">{{ in_progress }}</h2>
+                <span>In Progress</span>
+            </div>
+            <div style="text-align: center;">
+                <h2 style="color: var(--accent-purple); font-size: 3rem;">{{ total }}</h2>
+                <span>Total Units</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="glass-card"
+        style="display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center;">
+        <h3 style="margin-bottom: 10px;">Ready to Scan</h3>
+        <p style="color: var(--text-secondary);">Use your barcode scanner or enter manually below</p>
+        <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px; align-items: center;">
+            <div style="flex-grow: 1;">
+                <input type="text" id="manual-barcode" placeholder="Enter Barcode / Serial..."
+                    style="margin-bottom: 5px;"
+                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleScan(); }">
+                <div style="text-align: left; padding-left: 2px;">
+                    <input type="checkbox" id="qwerty-fix" checked
+                        style="width: auto; margin-right: 5px; vertical-align: middle;">
+                    <label for="qwerty-fix" style="color: var(--text-secondary); font-size: 0.8rem;">Fix QWERTY
+                        Scanner</label>
+                </div>
+            </div>
+            <button id="go-btn" onclick="handleScan()" class="btn btn-primary" style="height: 42px;">Go</button>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="margin: 0; color: var(--accent-cyan);">Recent Units</h2>
+        <input type="text" id="searchInput" placeholder="Filter units..."
+            style="padding: 8px; border-radius: 4px; border: 1px solid var(--card-border); background: rgba(0,0,0,0.3); color: var(--text-primary); width: 250px;">
+    </div>
+
+    <table id="unitsTable">
+        <thead>
+            <tr>
+                <th style="width: 80px; cursor: pointer;" onclick="sortTable(0)">Label</th>
+                <th style="width: 120px; cursor: pointer;" onclick="sortTable(1)">Barcode</th>
+                <th style="width: 150px; cursor: pointer;" onclick="sortTable(2)">Model</th>
+                <th style="cursor: pointer;" onclick="sortTable(3)">Issue</th>
+                <th style="cursor: pointer;" onclick="sortTable(4)">Condition / Pins</th>
+                <th style="width: 100px; cursor: pointer;" onclick="sortTable(5)">Status</th>
+                <th style="width: 150px; cursor: pointer;" onclick="sortTable(6)">Last Update</th>
+                <th style="width: 80px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for unit in units %}
+            <tr onclick="window.location.href='/unit/{{ unit.barcode }}'" style="cursor: pointer;">
+                <td style="font-weight: bold; color: var(--accent-purple);">{{ unit.label if unit.label else '-' }}</td>
+                <td style="font-family: monospace; color: var(--accent-cyan);">{{ unit.barcode }}</td>
+                <td>
+                    {{ unit.model }}
+                    {% if unit.type == 'Dock' %}<span
+                        style="font-size:0.7rem; background:#333; padding:2px 4px; border-radius:4px;">DOCK</span>{%
+                    endif %}
+                    {% if unit.patch_status and unit.patch_status != 'Unknown' %}
+                    {% set p_color = '#666' %}
+                    {% if 'Unpatched' in unit.patch_status %}{% set p_color = 'var(--accent-green)' %}
+                    {% elif 'Possibly' in unit.patch_status %}{% set p_color = 'var(--accent-yellow)' %}
+                    {% elif 'Patched' in unit.patch_status %}{% set p_color = 'var(--accent-red)' %}
+                    {% endif %}
+                    <div style="font-size: 0.75rem; color: {{ p_color }}; margin-top: 2px;">{{ unit.patch_status }}
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                    title="{{ unit.issue }}">
+                    {{ unit.issue }}
+                    <!-- Hidden span for search filter to find notes/condition -->
+                    <span style="display:none;">{{ unit.notes }} {{ unit.condition_notes }} {{ unit.model }} {{
+                        unit.patch_status }}</span>
+                </td>
+                <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #aaa;"
+                    title="{{ unit.condition_notes }}">
+
+                    <!-- Visual Pin Check Logic -->
+                    {% if unit.pin_check %}
+                    {% if unit.pin_check.startswith('{') %}
+                    <span class="pin-summary" data-json='{{ unit.pin_check }}'
+                        style="font-size: 0.8rem; margin-right: 5px;"></span>
+                    {% else %}
+                    <span style="font-size: 0.8rem; color: #888; margin-right: 5px;">PIN: {{ unit.pin_check }}</span>
+                    {% endif %}
+                    {% endif %}
+
+                    {{ unit.condition_notes if unit.condition_notes else '' }}
+                </td>
+                <td>
+                    <span class="status-badge 
+                            {% if unit.status == 'Received' %}status-received
+                            {% elif unit.status == 'Diagnosing' %}status-diagnosing
+                            {% elif unit.status == 'Waiting for Parts' %}status-waiting
+                            {% elif unit.status == 'Repairing' %}status-repairing
+                            {% elif unit.status == 'Testing' %}status-testing
+                            {% elif unit.status == 'Done' %}status-done
+                            {% elif unit.status == 'Delivered' %}status-delivered
+                            {% elif unit.status == 'Cancelled' %}status-cancelled
+                            {% endif %}
+                        ">
+                        {{ unit.status }}
+                    </span>
+                </td>
+                <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ unit.updated_at[:16] }}</td>
+                <td>
+                    <a href="/unit/{{ unit.barcode }}" class="btn btn-sm">VIEW</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    No units found. Scan a barcode to get started.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Parse Pin JSON for dashboard
+    document.querySelectorAll('.pin-summary').forEach(el => {
+        try {
+            const data = JSON.parse(el.dataset.json);
+            const olPins = [];
+
+            // Only showing OLs to save space
+            // Expected OL pins (Normal): 2, 3, 10, 11, 14, 15, 22, 23
+            const expectedOL = ['2', '3', '10', '11', '14', '15', '22', '23'];
+
+            for (const [pin, val] of Object.entries(data)) {
+                if (val.toUpperCase() === 'OL') {
+                    if (!expectedOL.includes(pin)) {
+                        olPins.push(pin);
+                    }
+                }
+            }
+
+            if (olPins.length > 0) {
+                el.innerHTML = `<span style="color:#ff4444; font-weight:bold;">OL: ${olPins.join(',')}</span>`;
+            } else if (Object.keys(data).length > 0) {
+                el.innerHTML = `<span style="color:#0aff0a; font-weight:bold;">PINS OK</span>`;
+            } else {
+                // Empty JSON
+                el.innerHTML = `<span style="color:#666;">CHECKED</span>`;
+            }
+        } catch (e) { console.error(e); }
+    });
+
+    // Search Filter
+    document.getElementById('searchInput').addEventListener('keyup', function () {
+        let filter = this.value.toUpperCase();
+        let rows = document.querySelector("#unitsTable tbody").rows;
+
+        for (let i = 0; i < rows.length; i++) {
+            let text = rows[i].textContent || rows[i].innerText;
+            if (text.toUpperCase().indexOf(filter) > -1) {
+                rows[i].style.display = "";
+            } else {
+                rows[i].style.display = "none";
+            }
+        }
+    });
+
+    // Simple Sort Function
+    function sortTable(n) {
+        var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = document.getElementById("unitsTable");
+        switching = true;
+        dir = "asc";
+
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+
+                if (dir == "asc") {
+                    if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir == "desc") {
+                    if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+</script>
+
+<script>
+    function handleScan() {
+        const input = document.getElementById('manual-barcode');
+        const fixEnabled = document.getElementById('qwerty-fix').checked;
+        let val = input.value.trim();
+
+        if (val && fixEnabled) {
+            val = fixQwerty(val);
+        }
+
+        if (val) {
+            window.location.href = '/unit/' + val;
+        }
+    }
+
+    function fixQwerty(input) {
+        // AZERTY <-> QWERTY conversion
+        const map = {
+            'A': 'Q', 'Q': 'A', 'Z': 'W', 'W': 'Z',
+            'a': 'q', 'q': 'a', 'z': 'w', 'w': 'z',
+            'm': ',', ',': 'm', 'M': '?', '?': 'M',
+            '&': '1', 'é': '2', '"': '3', "'": '4', '(': '5', '-': '6', 'è': '7', '_': '8', 'ç': '9', 'à': '0',
+            ')': '-', '=': '='
+        };
+
+        return input.split('').map(char => map[char] || char).join('');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switch Repair Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="/" style="text-decoration:none; color:inherit;">Switch Tracker</a></h1>
+            <div style="color: var(--text-secondary); font-size: 0.8rem;">
+                <!-- Search/Scanner is always active -->
+            </div>
+        </header>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Simple visual feedback for scanner
+        document.addEventListener('scanner-input', (e) => {
+            const status = document.getElementById('scanner-status');
+            status.style.color = 'var(--accent-cyan)';
+            status.textContent = 'SCANNING... ' + e.detail;
+            setTimeout(() => {
+                status.style.color = 'var(--text-secondary)';
+                status.textContent = 'SCANNER READY';
+            }, 1000);
+        });
+    </script>
+</body>
+
+</html>

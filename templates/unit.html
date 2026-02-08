@@ -1,0 +1,501 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="/" class="btn">&larr; Back to Dashboard</a>
+</div>
+
+<div class="glass-card">
+    <div
+        style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 1px solid var(--card-border); padding-bottom: 20px;">
+        <div>
+            <h1 style="font-family: monospace; letter-spacing: 0;">{{ barcode }}</h1>
+            <p style="color: var(--text-secondary);">
+                {% if unit %}
+                Rate In: {{ unit.created_at }} <!-- Placeholder for now -->
+                {% else %}
+                New Unit Enty
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            {% if unit %}
+            <span class="status-badge 
+                {% if unit.status == 'Received' %}status-received
+                {% elif unit.status == 'Done' %}status-done
+                {% elif unit.status == 'Waiting' %}status-waiting
+                {% else %}status-in-progress{% endif %}" style="font-size: 1.2rem; padding: 10px 20px;">
+                {{ unit.status }}
+            </span>
+            {% else %}
+            <span class="status-badge status-received" style="font-size: 1.2rem; padding: 10px 20px;">NEW</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Board
+                    Label / ID</label>
+                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                    <input type="text" name="label" id="labelInput"
+                        value="{{ unit.label if unit and unit.label else '' }}" placeholder="e.g. SW001"
+                        style="border-color: var(--accent-purple); margin-bottom: 0; flex: 1;">
+                    <button type="button" class="btn btn-sm" onclick="autoLabel()"
+                        style="padding: 0 15px; font-size: 0.8rem; border-color: var(--accent-purple); color: var(--accent-purple); display: flex; align-items: center;">
+                        AUTO
+                    </button>
+                </div>
+
+                <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Device
+                    Model</label>
+                <div style="display: flex; gap: 10px;">
+                    <select name="type" style="flex: 1;">
+                        <option value="Console" {% if not unit or unit.type=='Console' %}selected{% endif %}>Console
+                        </option>
+                        <option value="Dock" {% if unit and unit.type=='Dock' %}selected{% endif %}>Dock</option>
+                        <option value="Accessory" {% if unit and unit.type=='Accessory' %}selected{% endif %}>Accessory
+                        </option>
+                        <option value="Other" {% if unit and unit.type=='Other' %}selected{% endif %}>Other</option>
+                    </select>
+                    <input type="text" name="model" value="{{ unit.model if unit else 'Nintendo Switch' }}"
+                        placeholder="e.g. Switch V2" style="flex: 2;">
+                </div>
+
+                {% if unit and unit.patch_status %}
+                <div style="margin-top: 5px; font-size: 0.9rem;">
+                    <span style="color: var(--text-secondary);">Patch Status: </span>
+                    {% set status_color = 'var(--accent-yellow)' %}
+                    {% if unit.patch_status == 'Unpatched' %}
+                    {% set status_color = 'var(--accent-green)' %}
+                    {% elif unit.patch_status == 'Patched' %}
+                    {% set status_color = 'var(--accent-purple)' %}
+                    {% endif %}
+                    <span style="font-weight: bold; color: {{ status_color }};">{{ unit.patch_status }}</span>
+                </div>
+                {% endif %}
+
+                <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Reported
+                    Issue</label>
+                <input type="text" name="issue" value="{{ unit.issue if unit and unit.issue else '' }}"
+                    placeholder="e.g. Joysticks drift, No Power">
+
+                <!-- Diagnostics Section -->
+                <div
+                    style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid var(--card-border);">
+                    <h3
+                        style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 10px; border-bottom: 1px solid var(--card-border); padding-bottom: 5px;">
+                        Diagnostics</h3>
+
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="font-size: 0.9rem; color: #ccc; margin: 0;">USB-C Pin Check</label>
+                        <div>
+                            <button type="button" class="btn btn-sm" onclick="setAllPinsGood()"
+                                style="font-size: 0.7rem; padding: 4px 8px; margin-right: 5px; border-color: var(--accent-green); color: var(--accent-green);">SET
+                                GOOD</button>
+                            <button type="button" id="toggle-grid-btn" class="btn btn-sm" onclick="togglePinTester()"
+                                style="font-size: 0.7rem; padding: 4px 8px;">OPEN CHECKER</button>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="pin_check" id="pin_check_input"
+                        value="{{ unit.pin_check if unit and unit.pin_check else '' }}">
+
+                    <!-- Visual Grid (Hidden by default) -->
+                    <div id="visual-pin-tester"
+                        style="display: none; background: #000; border: 2px solid #333; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; color: #fff; margin-bottom: 10px;">
+                        <div
+                            style="display: flex; justify-content: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
+                            <span style="color: var(--accent-cyan); font-weight: bold; letter-spacing: 1px;">MECHANIC
+                                TESTER MODE</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; gap: 20px;">
+                            <!-- Side A (1-12) -->
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="text-align: center; color: #666; font-size: 0.7rem; margin-bottom: 5px;">
+                                    SIDE A</div>
+                                {% set pin_labels_a = {1:'GND', 2:'TX1+', 3:'TX1-', 4:'VBUS', 5:'CC1', 6:'D+', 7:'D-',
+                                8:'SBU1', 9:'VBUS', 10:'RX2-', 11:'RX2+', 12:'GND'} %}
+                                {% for i in range(1, 13) %}
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #888; font-size: 0.9rem; width: 25px;">{% if i < 10 %}0{%
+                                                endif %}{{i}}</span>
+                                                <span
+                                                    style="color: var(--accent-cyan); font-size: 0.8rem; font-weight: bold; width: 40px; font-family: sans-serif;">{{
+                                                    pin_labels_a[i] }}</span>
+                                    </div>
+                                    <input type="text" class="pin-input" data-pin="{{i}}" maxlength="5"
+                                        style="background: #111; border: 1px solid #222; color: #0aff0a; width: 100%; text-align: right; padding: 2px 5px; font-size: 0.9rem; letter-spacing: 1px;"
+                                        placeholder="---">
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Divider -->
+                            <div style="width: 1px; background: #333;"></div>
+
+                            <!-- Side B (13-24) -->
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="text-align: center; color: #666; font-size: 0.7rem; margin-bottom: 5px;">
+                                    SIDE B</div>
+                                {% set pin_labels_b = {13:'GND', 14:'RX1+', 15:'RX1-', 16:'VBUS', 17:'SBU2', 18:'D-',
+                                19:'D+', 20:'CC2', 21:'VBUS', 22:'TX2-', 23:'TX2+', 24:'GND'} %}
+                                {% for i in range(13, 25) %}
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <input type="text" class="pin-input" data-pin="{{i}}" maxlength="5"
+                                        style="background: #111; border: 1px solid #222; color: #0aff0a; width: 100%; text-align: left; padding: 2px 5px; font-size: 0.9rem; letter-spacing: 1px;"
+                                        placeholder="---">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span
+                                            style="color: var(--accent-cyan); font-size: 0.8rem; font-weight: bold; width: 40px; text-align: right; font-family: sans-serif;">{{
+                                            pin_labels_b[i] }}</span>
+                                        <span
+                                            style="color: #888; font-size: 0.9rem; width: 25px; text-align: right;">{{i}}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Diagnosis Result -->
+                    <div id="diagnosis-result"
+                        style="display: none; margin-top: 10px; margin-bottom: 10px; padding: 10px; border-radius: 8px; background: rgba(188, 19, 254, 0.1); border: 1px solid var(--accent-purple);">
+                        <strong style="color: var(--accent-purple); font-size: 0.9rem;">⚠️ Assistant Analysis:</strong>
+                        <div id="diagnosis-text" style="color: #fff; font-size: 0.9rem; margin-top: 5px;"></div>
+                    </div>
+
+                    <!-- Preview / Legacy Display -->
+                    <div id="pin-preview"
+                        style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; border: 1px solid var(--card-border); font-family: monospace; font-size: 0.9rem;">
+                        <span style="color: #666;">No Data</span>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.9rem; color: #ccc;">USB-C Reading</label>
+                            <input type="text" name="usb_c_reading"
+                                value="{{ unit.usb_c_reading if unit and unit.usb_c_reading else '' }}"
+                                placeholder="e.g. 15V/0.45A">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.9rem; color: #ccc;">Battery Amps (Harness)</label>
+                            <input type="text" name="amp_draw"
+                                value="{{ unit.amp_draw if unit and unit.amp_draw else '' }}" placeholder="e.g. 0.19A">
+                        </div>
+                    </div>
+                </div>
+
+                <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Current
+                    Status</label>
+                <select name="status">
+                    <option value="Received" {% if unit and unit.status=='Received' %}selected{% endif %}>Received
+                    </option>
+                    <option value="Diagnosing" {% if unit and unit.status=='Diagnosing' %}selected{% endif %}>Diagnosing
+                    </option>
+                    <option value="Waiting for Parts" {% if unit and unit.status=='Waiting for Parts' %}selected{% endif
+                        %}>Waiting for Parts</option>
+                    <option value="Repairing" {% if unit and unit.status=='Repairing' %}selected{% endif %}>Repairing
+                    </option>
+                    <option value="Testing" {% if unit and unit.status=='Testing' %}selected{% endif %}>Testing</option>
+                    <option value="Done" {% if unit and unit.status=='Done' %}selected{% endif %}>Done</option>
+                    <option value="Delivered" {% if unit and unit.status=='Delivered' %}selected{% endif %}>Delivered
+                    </option>
+                    <option value="Cancelled" {% if unit and unit.status=='Cancelled' %}selected{% endif %}>Cancelled
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Condition
+                    Notes / Summary</label>
+                <input type="text" name="condition_notes"
+                    value="{{ unit.condition_notes if unit and unit.condition_notes else '' }}"
+                    placeholder="e.g. Picofly Installed, Digitizer needed">
+
+                <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 10px;">Repair
+                    Log / Notes</label>
+                <textarea name="notes" rows="12"
+                    placeholder="Log details here...">{{ unit.notes if unit else '' }}</textarea>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; text-align: right;">
+            <button type="submit" class="btn btn-primary" style="font-size: 1.2rem; padding: 15px 40px;">
+                {% if unit %}Update Unit{% else %}Register Unit{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Visual Pin Tester Logic
+    const pinInput = document.getElementById('pin_check_input');
+    const pinPreview = document.getElementById('pin-preview');
+    const visualTester = document.getElementById('visual-pin-tester');
+    const toggleBtn = document.getElementById('toggle-grid-btn');
+    const pinInputs = document.querySelectorAll('.pin-input');
+
+    // Initial Load
+    loadVisualData();
+
+    function togglePinTester() {
+        if (visualTester.style.display === 'none') {
+            // Open Grid
+            visualTester.style.display = 'block';
+            pinPreview.style.display = 'none';
+            toggleBtn.textContent = 'CLOSE CHECKER';
+            toggleBtn.style.borderColor = 'var(--accent-purple)';
+            toggleBtn.style.color = 'var(--accent-purple)';
+        } else {
+            // Close Grid
+            visualTester.style.display = 'none';
+            pinPreview.style.display = 'block';
+            toggleBtn.textContent = 'OPEN CHECKER';
+            toggleBtn.style.borderColor = 'var(--accent-cyan)';
+            toggleBtn.style.color = 'var(--accent-cyan)';
+            updatePreview();
+        }
+    }
+
+    function loadVisualData() {
+        let data = pinInput.value;
+        if (!data) return;
+
+        try {
+            // Try parsing as JSON
+            const jsonData = JSON.parse(data);
+
+            // Populate Grid
+            pinInputs.forEach(input => {
+                const pin = input.dataset.pin;
+                if (jsonData[pin]) {
+                    input.value = jsonData[pin];
+                    updatePinStyle(input);
+                }
+            });
+
+            // Analyze
+            analyzePins(jsonData);
+
+            // Update Preview immediately (if grid is starting closed)
+            updatePreview(jsonData);
+
+        } catch (e) {
+            // Legacy Text
+            pinPreview.innerHTML = `<span style="color: var(--accent-cyan);">${data}</span>`;
+        }
+    }
+
+    function updatePreview(jsonData = null) {
+        if (!jsonData) {
+            // If not passed, re-read from inputs
+            jsonData = {};
+            pinInputs.forEach(input => {
+                if (input.value.trim()) jsonData[input.dataset.pin] = input.value.trim();
+            });
+        }
+
+        let olPins = [];
+        let shortPins = [];
+        let hasData = false;
+
+        const expectedOL = ['2', '3', '10', '11', '14', '15', '22', '23'];
+
+        for (const [pin, val] of Object.entries(jsonData)) {
+            hasData = true;
+            if (val.toUpperCase() === 'OL') {
+                if (!expectedOL.includes(pin)) {
+                    olPins.push(pin);
+                }
+            }
+            else if (isShort(val)) shortPins.push(pin);
+        }
+
+        if (!hasData) {
+            // Check if legacy text logic applies
+            if (!pinInput.value.trim().startsWith('{') && pinInput.value.trim().length > 0) {
+                pinPreview.innerHTML = `<span style="color: var(--accent-cyan);">${pinInput.value}</span>`;
+                return;
+            }
+            pinPreview.innerHTML = '<span style="color: #666;">No Readings Recorded</span>';
+            return;
+        }
+
+        let html = '';
+        if (olPins.length > 0) {
+            html += `<div style="color: #ff4444;"><strong>OL:</strong> ${olPins.join(', ')}</div>`;
+        }
+        if (shortPins.length > 0) {
+            html += `<div style="color: var(--accent-yellow);"><strong>SHORT:</strong> ${shortPins.join(', ')}</div>`;
+        }
+        if (olPins.length === 0 && shortPins.length === 0) {
+            html += `<div style="color: var(--accent-green);"><strong>ALL PINS OK</strong> (Diode Mode)</div>`;
+        }
+
+        pinPreview.innerHTML = html;
+    }
+
+    function updatePinStyle(input) {
+        const val = input.value.toUpperCase();
+        const pin = parseInt(input.dataset.pin);
+        const expectedOL = [2, 3, 10, 11, 14, 15, 22, 23];
+
+        if (val === 'OL') {
+            if (expectedOL.includes(pin)) {
+                input.style.color = '#ffffff'; // White (Expected OL - TX/RX)
+                input.style.fontWeight = 'normal';
+            } else {
+                input.style.color = '#ff4444'; // Red (Fault)
+                input.style.fontWeight = 'bold';
+            }
+        } else if (val === 'GND' || val === '0.000') {
+            input.style.color = '#00f3ff'; // Cyan/Blue
+        } else {
+            input.style.color = '#0aff0a'; // Green
+        }
+    }
+
+    function saveVisualData() {
+        let data = {};
+        let hasData = false;
+        pinInputs.forEach(input => {
+            const val = input.value.trim();
+            if (val) {
+                data[input.dataset.pin] = val;
+                hasData = true;
+            }
+        });
+
+        if (hasData) {
+            pinInput.value = JSON.stringify(data);
+            analyzePins(data);
+        } else {
+            // If cleared, maybe clear input?
+            // pinInput.value = "";
+        }
+    }
+
+    function analyzePins(data) {
+        const resultDiv = document.getElementById('diagnosis-result');
+        const resultText = document.getElementById('diagnosis-text');
+        let findings = [];
+        let olCount = 0;
+
+        // Count OLs
+        for (const key in data) {
+            if (data[key] === 'OL') olCount++;
+        }
+
+        // Check for Ripped Off Port (Most/All pins OL)
+        // If > 20 OLs, likely ripped off or major disconnect
+        if (olCount > 20) {
+            findings.push("USB-C Port likely Ripped Off / Disconnected");
+        } else {
+            // Pins A5(5), B5(17) are CC1/CC2
+            if (isShort(data['5']) || isShort(data['17'])) {
+                findings.push("Potential M92 IC Short (CC Lines - Pin 5/17)");
+            }
+
+            // D+ D- (P13USB) -> Pins 6, 7, 18, 19
+            if (data['6'] === 'OL' || data['7'] === 'OL' || data['18'] === 'OL' || data['19'] === 'OL') {
+                findings.push("Likely Broken Traces / Pads at USB-C Connector (Data Lines OL)");
+            }
+
+            // CC1/CC2 (M92) -> Pins 5, 20
+            if (data['5'] === 'OL' || data['20'] === 'OL') {
+                findings.push("Check M92 IC / USB-C Port (CC Lines OL)");
+            }
+
+            // SBU1/SBU2 (P13USB) -> Pins 8, 17
+            if (data['8'] === 'OL' || data['17'] === 'OL') {
+                findings.push("Check P13USB / Filters (SBU Lines OL)");
+            }
+
+            // VBUS Short -> Pin 4, 9, 16, 21
+            if (isShort(data['4']) || isShort(data['9']) || isShort(data['16']) || isShort(data['21'])) {
+                findings.push("VBUS Short (Check M92 / BQ / Caps)");
+            }
+        }
+
+        if (findings.length > 0) {
+            resultDiv.style.display = 'block';
+            resultText.innerHTML = findings.join("<br>");
+        } else {
+            resultDiv.style.display = 'none';
+        }
+    }
+
+    function isShort(val) {
+        if (!val) return false;
+        if (val.toUpperCase() === 'SHORT') return true;
+        let num = parseFloat(val);
+        if (!isNaN(num) && num > 0 && num < 0.050) return true;
+        return false;
+    }
+
+    function setAllPinsGood() {
+        if (visualTester.style.display === 'none') {
+            togglePinTester(); // Ensure it's open
+        }
+
+        const goodValues = {
+            1: 'GND', 2: 'OL', 3: 'OL', 4: '0.52', 5: '0.54', 6: '0.80', 7: '0.81', 8: '0.75', 9: '0.52', 10: 'OL', 11: 'OL', 12: 'GND',
+            13: 'GND', 14: 'OL', 15: 'OL', 16: '0.52', 17: '0.75', 18: '0.81', 19: '0.80', 20: '0.54', 21: '0.52', 22: 'OL', 23: 'OL', 24: 'GND'
+        };
+
+        pinInputs.forEach(input => {
+            const pin = parseInt(input.dataset.pin);
+            if (goodValues[pin]) {
+                input.value = goodValues[pin];
+            }
+            updatePinStyle(input);
+        });
+        saveVisualData();
+    }
+
+    // Attach listeners
+    pinInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            updatePinStyle(input);
+            saveVisualData();
+        });
+        input.addEventListener('blur', () => {
+            let val = input.value.toUpperCase();
+            if (val === 'OL' || val === 'GND') {
+                input.value = val;
+                updatePinStyle(input);
+                saveVisualData();
+            }
+        });
+    });
+
+    function autoLabel() {
+        console.log("Auto Label Clicked");
+        fetch('/api/next-label')
+            .then(response => response.json())
+            .then(data => {
+                console.log("Next Label Response:", data);
+                if (data.next_label) {
+                    const labelInput = document.getElementById('labelInput');
+                    labelInput.value = data.next_label;
+                    // Flash effect
+                    labelInput.style.backgroundColor = 'rgba(188, 19, 254, 0.3)';
+                    setTimeout(() => {
+                        labelInput.style.backgroundColor = '';
+                    }, 500);
+                }
+            })
+            .catch(error => console.error('Error fetching next label:', error));
+    }
+</script>
+{% endblock %}
