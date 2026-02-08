@@ -49,6 +49,12 @@
                 </div>
 
                 <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Owner
+                    (Optional)</label>
+                <input type="text" name="owner" value="{{ unit.owner if unit and unit.owner else '' }}"
+                    placeholder="e.g. Customer Name">
+
+                <label
                     style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Device
                     Model</label>
                 <div style="display: flex; gap: 10px;">

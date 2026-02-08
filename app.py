@@ -54,6 +54,7 @@ def unit_detail(barcode):
         usb_c_reading = request.form.get('usb_c_reading')
         amp_draw = request.form.get('amp_draw')
         condition_notes = request.form.get('condition_notes')
+        owner = request.form.get('owner')
         
         # If model/type/patch_status are missing or generic, try SSNC
         # But if user manually set them (implied by POST), we might respect that.
@@ -81,10 +82,10 @@ def unit_detail(barcode):
         if exists:
             query = '''
                 UPDATE units SET model = ?, issue = ?, status = ?, notes = ?, label = ?, type = ?, 
-                pin_check = ?, usb_c_reading = ?, amp_draw = ?, condition_notes = ?,
+                pin_check = ?, usb_c_reading = ?, amp_draw = ?, condition_notes = ?, owner = ?,
                 updated_at = CURRENT_TIMESTAMP
             '''
-            params = [model, issue, status, notes, label, unit_type, pin_check, usb_c_reading, amp_draw, condition_notes]
+            params = [model, issue, status, notes, label, unit_type, pin_check, usb_c_reading, amp_draw, condition_notes, owner]
             
             if patch_status:
                 query += ', patch_status = ?'
@@ -105,10 +106,10 @@ def unit_detail(barcode):
 
             db.execute('''
                 INSERT INTO units (barcode, model, issue, status, notes, label, type, patch_status,
-                pin_check, usb_c_reading, amp_draw, condition_notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                pin_check, usb_c_reading, amp_draw, condition_notes, owner)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (barcode, model, issue, status, notes, label, unit_type, patch_status, 
-                  pin_check, usb_c_reading, amp_draw, condition_notes))
+                  pin_check, usb_c_reading, amp_draw, condition_notes, owner))
             
         db.commit()
         return redirect(url_for('unit_detail', barcode=barcode))
