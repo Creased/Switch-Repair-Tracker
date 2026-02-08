@@ -8,10 +8,45 @@
     --accent-purple: #bc13fe;
     --accent-green: #0aff0a;
     --accent-yellow: #ffea00;
-    --glow-cyan: 0 0 10px rgba(0, 243, 255, 0.5);
-    --glow-purple: 0 0 10px rgba(188, 19, 254, 0.5);
+    --accent-orange: #ffa500;
+    --accent-purple-dark: #a010d6;
+    --accent-red: #ff4444;
     --font-heading: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-body: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+    /* Status Colors */
+    --status-received-bg: rgba(255, 255, 255, 0.05);
+    --status-received-text: #ffffff;
+    --status-in-progress-bg: rgba(0, 243, 255, 0.1);
+    --status-in-progress-text: var(--accent-cyan);
+    --status-waiting-bg: rgba(255, 234, 0, 0.1);
+    --status-waiting-text: var(--accent-yellow);
+    --status-done-bg: rgba(10, 255, 10, 0.1);
+    --status-done-text: var(--accent-green);
+    --status-diagnosing-bg: rgba(188, 19, 254, 0.1);
+    --status-diagnosing-text: var(--accent-purple);
+    --status-repairing-bg: rgba(0, 243, 255, 0.1);
+    --status-repairing-text: var(--accent-cyan);
+    --status-testing-bg: rgba(255, 165, 0, 0.1);
+    --status-testing-text: #ffa500;
+    --status-sold-bg: rgba(99, 102, 241, 0.15);
+    --status-sold-text: #a5b4fc;
+    --status-cancelled-bg: rgba(255, 68, 68, 0.1);
+    --status-cancelled-text: var(--accent-red);
+
+    /* MiscUI Colors */
+    --input-bg: rgba(0, 0, 0, 0.3);
+    --bg-darker: #111111;
+    --bg-dark: #222222;
+    --border-dark: #333333;
+    --text-muted: #666666;
+    --text-dim: #888888;
+    --text-soft: #aaaaaa;
+    --text-light: #cccccc;
+    --accent-purple-dim: rgba(188, 19, 254, 0.1);
+    --accent-purple-soft: rgba(188, 19, 254, 0.3);
+    --accent-cyan-dim: rgba(0, 243, 255, 0.1);
+    --transition-base: all 0.2s ease-in-out;
 }
 
 body {
@@ -62,13 +97,26 @@ h3 {
     letter-spacing: 2px;
 }
 
-h1 {
-    font-size: 2.5rem;
+a {
+    color: var(--accent-cyan);
+    text-decoration: none;
+    transition: var(--transition-base);
+}
+
+a:hover {
+    color: var(--accent-purple);
+}
+
+header h1 a {
     background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 20px rgba(188, 19, 254, 0.3);
+    transition: var(--transition-base);
+}
+
+header h1 a:hover {
+    filter: brightness(1.2);
 }
 
 /* Buttons */
@@ -81,34 +129,54 @@ h1 {
     cursor: pointer;
     font-weight: bold;
     text-transform: uppercase;
-    transition: all 0.3s ease;
+    transition: var(--transition-base);
     text-decoration: none;
     display: inline-block;
 }
 
 .btn:hover {
     background: var(--accent-cyan);
-    color: #000;
-    box-shadow: var(--glow-cyan);
+    color: var(--bg-color);
 }
 
 .btn-primary {
-    background: var(--accent-purple);
     border-color: var(--accent-purple);
-    color: #fff;
+    color: var(--accent-purple);
+    background: transparent;
 }
 
 .btn-primary:hover {
-    background: #a010d6;
-    color: #fff;
-    box-shadow: var(--glow-purple);
+    background: var(--accent-purple);
+    color: var(--bg-color);
+}
+
+.btn-accent-purple {
+    border-color: var(--accent-purple);
+    color: var(--accent-purple);
+    background: transparent;
+}
+
+.btn-accent-purple:hover {
+    background: var(--accent-purple);
+    color: var(--bg-color);
+}
+
+.btn-accent-green {
+    border-color: var(--accent-green);
+    color: var(--accent-green);
+    background: transparent;
+}
+
+.btn-accent-green:hover {
+    background: var(--accent-green);
+    color: var(--bg-color);
 }
 
 /* Inputs */
 input,
 select,
 textarea {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--input-bg);
     border: 1px solid var(--card-border);
     color: #fff;
     padding: 12px;
@@ -117,6 +185,11 @@ textarea {
     box-sizing: border-box;
     font-size: 1rem;
     margin-bottom: 10px;
+    transition: var(--transition-base);
+}
+
+select {
+    padding-right: 35px;
 }
 
 input:focus,
@@ -124,69 +197,231 @@ select:focus,
 textarea:focus {
     outline: none;
     border-color: var(--accent-cyan);
-    box-shadow: var(--glow-cyan);
 }
 
-/* Status Badges */
+.input-with-icon {
+    position: relative;
+    width: 100%;
+}
+
+.icon-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    color: var(--text-dim);
+    transition: var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    opacity: 0.6;
+}
+
+.icon-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+.icon-toggle:hover {
+    opacity: 1;
+    color: var(--accent-cyan);
+}
+
+.icon-toggle.active {
+    color: var(--accent-cyan);
+    opacity: 1;
+}
+
+.input-with-icon input {
+    padding-right: 45px !important;
+}
+
+/* Custom Checkbox */
+input[type="checkbox"].custom-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--accent-purple);
+    border-radius: 4px;
+    background: var(--input-bg);
+    cursor: pointer;
+    position: relative;
+    transition: var(--transition-base);
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+input[type="checkbox"].custom-checkbox:checked {
+    background: var(--accent-purple);
+    border-color: var(--accent-purple);
+}
+
+input[type="checkbox"].custom-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+input[type="checkbox"].custom-checkbox:hover {
+    border-color: #c77dff;
+}
+
+input[type="checkbox"].custom-checkbox.cyan {
+    border-color: var(--accent-cyan);
+}
+
+input[type="checkbox"].custom-checkbox.cyan:checked {
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+}
+
+input[type="checkbox"].custom-checkbox.cyan:checked::after {
+    color: var(--bg-color);
+}
+
+/* Badges & Tags */
 .status-badge {
-    padding: 5px 10px;
+    padding: 5px 12px;
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: bold;
     text-transform: uppercase;
+    transition: var(--transition-base);
+    display: inline-block;
+}
+
+.status-badge:hover {
+    cursor: default;
+}
+
+.status-received:hover {
+    background: var(--status-received-text);
+    color: var(--bg-color);
+}
+
+.status-in-progress:hover {
+    background: var(--status-in-progress-text);
+    color: var(--bg-color);
+}
+
+.status-waiting:hover {
+    background: var(--status-waiting-text);
+    color: var(--bg-color);
+}
+
+.status-done:hover {
+    background: var(--status-done-text);
+    color: var(--bg-color);
+}
+
+.status-diagnosing:hover {
+    background: var(--status-diagnosing-text);
+    color: var(--bg-color);
+}
+
+.status-repairing:hover {
+    background: var(--status-repairing-text);
+    color: var(--bg-color);
+}
+
+.status-testing:hover {
+    background: var(--status-testing-text);
+    color: var(--bg-color);
+}
+
+.status-sold:hover {
+    background: var(--status-sold-text);
+    color: var(--bg-color);
+}
+
+.status-modchip:hover {
+    background: var(--accent-purple);
+    color: var(--bg-color);
+}
+
+.status-cancelled:hover {
+    background: var(--status-cancelled-text);
+    color: var(--bg-color);
+}
+
+
+.tag {
+    font-size: 0.7rem;
+    background: var(--border-dark);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    transition: var(--transition-base);
+}
+
+.tag:hover {
+    background: var(--accent-purple-soft);
+    color: var(--text-primary);
 }
 
 .status-received {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: var(--status-received-bg);
+    color: var(--status-received-text);
 }
 
 .status-in-progress {
-    background: rgba(0, 243, 255, 0.2);
-    color: var(--accent-cyan);
-    border: 1px solid var(--accent-cyan);
+    background: var(--status-in-progress-bg);
+    color: var(--status-in-progress-text);
 }
 
 .status-waiting {
-    background: rgba(255, 234, 0, 0.2);
-    color: var(--accent-yellow);
-    border: 1px solid var(--accent-yellow);
+    background: var(--status-waiting-bg);
+    color: var(--status-waiting-text);
 }
 
 .status-done {
-    background: rgba(10, 255, 10, 0.2);
-    color: var(--accent-green);
-    border: 1px solid var(--accent-green);
+    background: var(--status-done-bg);
+    color: var(--status-done-text);
 }
 
 .status-diagnosing {
-    background: rgba(188, 19, 254, 0.2);
-    color: var(--accent-purple);
-    border: 1px solid var(--accent-purple);
+    background: var(--status-diagnosing-bg);
+    color: var(--status-diagnosing-text);
 }
 
 .status-repairing {
-    background: rgba(0, 243, 255, 0.2);
-    color: var(--accent-cyan);
-    border: 1px solid var(--accent-cyan);
+    background: var(--status-repairing-bg);
+    color: var(--status-repairing-text);
 }
 
 .status-testing {
-    background: rgba(255, 165, 0, 0.2);
-    color: orange;
-    border: 1px solid orange;
+    background: var(--status-testing-bg);
+    color: var(--status-testing-text);
 }
 
-.status-delivered {
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
-    border: 1px solid #fff;
+.status-sold {
+    background: var(--status-sold-bg);
+    color: var(--status-sold-text);
+}
+
+.status-modchip {
+    background: var(--accent-purple);
+    color: var(--text-primary);
+    border: 1px solid var(--accent-purple);
 }
 
 .status-cancelled {
-    background: rgba(255, 0, 0, 0.2);
-    color: #ff4444;
-    border: 1px solid #ff4444;
+    background: var(--status-cancelled-bg);
+    color: var(--status-cancelled-text);
 }
 
 /* Table */
@@ -210,7 +445,11 @@ th {
 }
 
 tr:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+tr {
+    transition: var(--transition-base);
 }
 
 /* Utilities */

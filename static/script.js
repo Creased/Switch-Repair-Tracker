@@ -31,6 +31,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleScan(barcode) {
+        // Apply QWERTY fix if enabled in localStorage
+        const fixEnabled = localStorage.getItem('qwerty-fix-enabled');
+        // Default to true if not set
+        if (fixEnabled === null || fixEnabled === 'true') {
+            barcode = fixQwerty(barcode);
+        }
+
         // Dispatch event for UI feedback
         const event = new CustomEvent('scanner-input', { detail: barcode });
         document.dispatchEvent(event);
@@ -40,5 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Navigate to unit page
         window.location.href = `/unit/${barcode}`;
+    }
+
+    function fixQwerty(input) {
+        // AZERTY <-> QWERTY conversion
+        const map = {
+            'A': 'Q', 'Q': 'A', 'Z': 'W', 'W': 'Z',
+            'a': 'q', 'q': 'a', 'z': 'w', 'w': 'z',
+            'm': ',', ',': 'm', 'M': '?', '?': 'M',
+            '&': '1', 'é': '2', '"': '3', "'": '4', '(': '5',
+            '-': '6', 'è': '7', '_': '8', 'ç': '9', 'à': '0',
+            ')': '-', '=': '='
+        };
+        return input.split('').map(char => map[char] || char).join('');
     }
 });

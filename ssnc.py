@@ -11,113 +11,80 @@ def check_serial(serial):
     if not serial:
         return {'type': 'Unknown', 'model': 'Unknown', 'patch_status': 'Unknown'}
 
-    # Docks usually don't have the XAA/XAW format, but let's assume if it doesn't match known switch patterns
-    # it might be a dock or accessory, OR just an invalid serial.
-    # For now, we default to "Console" if it looks like a switch serial, else "Unknown/Accessory"
-    
-    # Prefix extraction (first 4 chars)
-    prefix = serial[:4]
+    # Prefix extraction
+    prefix_3 = serial[:3]
     try:
-        # Extract the number part (next 10 digits? usually 14 chars total)
-        # Some sources say 6+, let's grab as many digits as possible after prefix
-        num_part_str = re.search(r'\d+', serial[3:])
-        if not num_part_str:
-             return {'type': 'Unknown', 'model': 'Unknown', 'patch_status': 'Unknown'}
-        
-        # We need the full number for range checking, usually the first few digits matter.
-        # Standard format: XAA 123456789 (Prefix 3 chars + digits? Or Prefix 4 chars?)
-        # Common convention: XAW1, XAW4, XAJ1 etc. are the "Prefixes". The number is what follows.
-        
-        # Let's standardize: Prefix = First 4 chars (e.g. XAW1)
-        # Number = integer value of the following digits.
-        
-        prefix = serial[:4]
-        if len(serial) < 8:
+        # Extract the number part from index 3 onwards (usually 11 digits including sub-region)
+        # Chart format: XAW1... -> XAW (prefix) + 1... (number)
+        if len(serial) < 14:
              return {'type': 'Manual Check Needed', 'model': 'Unknown', 'patch_status': 'Unknown'}
-
-        number = int(serial[4:14]) if len(serial) >= 14 else int(serial[4:]) 
-        # Safe fallback if shorter
+        
+        number = int(serial[3:]) 
         
     except:
         return {'type': 'Manual Check Needed', 'model': 'Unknown', 'patch_status': 'Unknown'}
 
-    model = "Switch V1"
+    model = "Switch V1 (Erista)"
     patch_status = "Unknown"
     
-    # Logic based on community ranges
-    # XAW1: US/NA
-    if prefix == 'XAW1':
-        if number < 10074000000:
+    # Logic based on community ranges (Image reference)
+    if prefix_3 == 'XAW':
+        # XAW1
+        if 10000000000 <= number < 10074000000:
             patch_status = "Unpatched"
         elif 10074000000 <= number < 10120000000:
-            patch_status = "Possibly Patched"
-        else: # >= 10120000000
+            patch_status = "Warning"
+        elif number >= 10120000000 and number < 40000000000:
             patch_status = "Patched"
-            
-    # XAW4: Canada?
-    elif prefix == 'XAW4':
-        if number < 40011000000:
+        # XAW4
+        elif 40000000000 <= number < 40011000000:
             patch_status = "Unpatched"
         elif 40011000000 <= number < 40012000000:
-            patch_status = "Possibly Patched"
-        else:
+            patch_status = "Warning"
+        elif number >= 40012000000 and number < 70000000000:
             patch_status = "Patched"
-            
-    # XAW7: US/NA
-    elif prefix == 'XAW7':
-        if number < 70017800000:
+        # XAW7
+        elif 70000000000 <= number < 70017800000:
             patch_status = "Unpatched"
         elif 70017800000 <= number < 70030000000:
-            patch_status = "Possibly Patched"
-        else:
+            patch_status = "Warning"
+        elif number >= 70030000000:
             patch_status = "Patched"
-            
-    # XAJ1: Japan?
-    elif prefix == 'XAJ1':
-        if number < 10020000000:
+
+    elif prefix_3 == 'XAJ':
+        # XAJ1
+        if 10000000000 <= number < 10020000000:
             patch_status = "Unpatched"
         elif 10020000000 <= number < 10030000000:
-            patch_status = "Possibly Patched"
-        else:
+            patch_status = "Warning"
+        elif number >= 10030000000 and number < 40000000000:
             patch_status = "Patched"
-            
-    # XAJ4: Euro
-    elif prefix == 'XAJ4':
-        if number < 40053300000:
+        # XAJ4
+        elif 40000000000 <= number < 40046000000:
             patch_status = "Unpatched"
-        elif 40053300000 <= number < 40060000000:
-            patch_status = "Possibly Patched"
-        else:
+        elif 40046000000 <= number < 40060000000:
+            patch_status = "Warning"
+        elif number >= 40060000000 and number < 70000000000:
             patch_status = "Patched"
-            
-    # XAJ7: Euro
-    elif prefix == 'XAJ7':
-        if number < 70040000000:
+        # XAJ7
+        elif 70000000000 <= number < 70040000000:
             patch_status = "Unpatched"
         elif 70040000000 <= number < 70050000000:
-            patch_status = "Possibly Patched"
-        else:
+            patch_status = "Warning"
+        elif number >= 70050000000:
             patch_status = "Patched"
 
-    # XKW1, XKJ1, XJW1, XWW1 -> Mariko / Patched (V2/Lite/OLED)
-    elif prefix.startswith('XK') or prefix.startswith('XJ') or prefix.startswith('XW'):
+    # Mariko / Lite / OLED prefixes
+    elif prefix_3 in ['XKW', 'XKJ', 'XJW', 'XWW']:
         patch_status = "Patched"
-        if prefix.startswith('XK'):
+        if prefix_3.startswith('XK') or prefix_3 == 'XWW':
             model = "Switch V2 (Mariko)"
-        elif prefix.startswith('XJ'):
-            model = "Switch Lite" # Tentative, verified Lite often starts with XJ
-        elif prefix.startswith('XT'):
-             model = "Switch OLED"
-
-    # OLED check (XT)
-    elif prefix.startswith('XT'):
+        elif prefix_3 == 'XJW':
+            model = "Switch Lite"
+    
+    elif serial.startswith('XT'):
         patch_status = "Patched"
         model = "Switch OLED"
-        
-    # Lite check (XJ)
-    elif prefix.startswith('XJ'):
-        patch_status = "Patched"
-        model = "Switch Lite"
 
     else:
         # Default fallback
@@ -130,8 +97,9 @@ def check_serial(serial):
     }
 
 if __name__ == '__main__':
-    # Test cases
-    print(check_serial("XAW10000000000")) # Unpatched
-    print(check_serial("XAW10075000000")) # Possibly
-    print(check_serial("XKW10000000000")) # V2 Patched
-    print(check_serial("XTJ10000000000")) # OLED
+    # Test cases from image
+    print(f"XAW100740...: {check_serial('XAW10074000000')['patch_status']}") # Possibly
+    print(f"XAJ400460...: {check_serial('XAJ40046000000')['patch_status']}") # Possibly
+    print(f"XAJ400643...: {check_serial('XAJ40064380854')['patch_status']}") # Patched
+    print(f"XKW100000...: {check_serial('XKW10000000000')['patch_status']}") # Patched
+    print(f"XJW100000...: {check_serial('XJW10000000000')['patch_status']}") # Patched

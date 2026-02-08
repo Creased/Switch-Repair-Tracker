@@ -1,39 +1,47 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    #modchip-type:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
 <div style="margin-bottom: 20px;">
     <a href="/" class="btn">&larr; Back to Dashboard</a>
 </div>
 
 <div class="glass-card">
-    <div
-        style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 1px solid var(--card-border); padding-bottom: 20px;">
-        <div>
-            <h1 style="font-family: monospace; letter-spacing: 0;">{{ barcode }}</h1>
-            <p style="color: var(--text-secondary);">
-                {% if unit %}
-                Rate In: {{ unit.created_at }} <!-- Placeholder for now -->
-                {% else %}
-                New Unit Enty
-                {% endif %}
-            </p>
-        </div>
-        <div>
-            {% if unit %}
-            <span class="status-badge 
-                {% if unit.status == 'Received' %}status-received
-                {% elif unit.status == 'Done' %}status-done
-                {% elif unit.status == 'Waiting' %}status-waiting
-                {% else %}status-in-progress{% endif %}" style="font-size: 1.2rem; padding: 10px 20px;">
-                {{ unit.status }}
-            </span>
-            {% else %}
-            <span class="status-badge status-received" style="font-size: 1.2rem; padding: 10px 20px;">NEW</span>
-            {% endif %}
-        </div>
-    </div>
-
     <form method="POST">
+        <div
+            style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 1px solid var(--card-border); padding-bottom: 20px;">
+            <div>
+                <h1 style="font-family: monospace; letter-spacing: 0;">{{ barcode }}</h1>
+                <p style="color: var(--text-secondary);">
+                    {% if unit %}
+                    Rate In: {{ unit.created_at }} <!-- Placeholder for now -->
+                    {% else %}
+                    New Unit Entry
+                    {% endif %}
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                {% if unit %}
+                <span class="status-badge 
+                    {% if unit.status == 'Received' %}status-received
+                    {% elif unit.status == 'Done' %}status-done
+                    {% elif unit.status == 'Waiting' %}status-waiting
+                    {% else %}status-in-progress{% endif %}" style="font-size: 1.2rem; padding: 10px 20px;">
+                    {{ unit.status }}
+                </span>
+                {% else %}
+                <span class="status-badge status-received" style="font-size: 1.2rem; padding: 10px 20px;">NEW</span>
+                {% endif %}
+                <button type="submit" class="btn btn-primary" style="font-size: 1rem; padding: 12px 30px;">
+                    {% if unit %}Update Unit{% else %}Register Unit{% endif %}
+                </button>
+            </div>
+        </div>
         <div class="grid-2">
             <div>
                 <label style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Board
@@ -42,17 +50,37 @@
                     <input type="text" name="label" id="labelInput"
                         value="{{ unit.label if unit and unit.label else '' }}" placeholder="e.g. SW001"
                         style="border-color: var(--accent-purple); margin-bottom: 0; flex: 1;">
-                    <button type="button" class="btn btn-sm" onclick="autoLabel()"
-                        style="padding: 0 15px; font-size: 0.8rem; border-color: var(--accent-purple); color: var(--accent-purple); display: flex; align-items: center;">
+                    <button type="button" class="btn btn-sm btn-accent-purple" onclick="autoLabel()"
+                        style="padding: 0 15px; font-size: 0.8rem; display: flex; align-items: center;">
                         AUTO
                     </button>
                 </div>
 
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Owner
+                <label style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Owner
                     (Optional)</label>
-                <input type="text" name="owner" value="{{ unit.owner if unit and unit.owner else '' }}"
-                    placeholder="e.g. Customer Name">
+                <input type="text" name="owner" placeholder="Owner name (for tracking repairs)"
+                    value="{{ unit.owner if unit and unit.owner else '' }}">
+
+                <label
+                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 8px; display: block; margin-top: 15px;">
+                    Modchip
+                </label>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <input type="checkbox" id="modchip-check" class="custom-checkbox" name="modchip_installed" {% if
+                        unit and unit.modchip %}checked{% endif %}>
+                    <select name="modchip_type" id="modchip-type" {% if not unit or not unit.modchip %}disabled{% endif
+                        %} style="flex: 1; padding-right: 35px;">
+                        <option value="">No Modchip</option>
+                        <option value="Picofly" {% if unit and unit.modchip=='Picofly' %}selected{% endif %}>Picofly
+                        </option>
+                        <option value="SX Core" {% if unit and unit.modchip=='SX Core' %}selected{% endif %}>SX Core
+                        </option>
+                        <option value="Modchip" {% if unit and unit.modchip=='Modchip' %}selected{% endif %}>Generic
+                            Modchip</option>
+                    </select>
+                </div>
+
+                <div style="margin-top: 20px; border-top: 1px solid var(--card-border); padding-top: 20px;"></div>
 
                 <label
                     style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Device
@@ -76,8 +104,10 @@
                     {% set status_color = 'var(--accent-yellow)' %}
                     {% if unit.patch_status == 'Unpatched' %}
                     {% set status_color = 'var(--accent-green)' %}
+                    {% elif unit.patch_status == 'Warning' %}
+                    {% set status_color = 'var(--accent-yellow)' %}
                     {% elif unit.patch_status == 'Patched' %}
-                    {% set status_color = 'var(--accent-purple)' %}
+                    {% set status_color = 'var(--accent-red)' %}
                     {% endif %}
                     <span style="font-weight: bold; color: {{ status_color }};">{{ unit.patch_status }}</span>
                 </div>
@@ -91,29 +121,35 @@
 
                 <!-- Diagnostics Section -->
                 <div
-                    style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid var(--card-border);">
+                    style="background: var(--input-bg); padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid var(--card-border);">
                     <h3
                         style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 10px; border-bottom: 1px solid var(--card-border); padding-bottom: 5px;">
                         Diagnostics</h3>
 
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <label style="font-size: 0.9rem; color: #ccc; margin: 0;">USB-C Pin Check</label>
+                        <label style="font-size: 0.9rem; color: var(--text-light); margin: 0;">USB-C Pin Check</label>
                         <div>
-                            <button type="button" class="btn btn-sm" onclick="setAllPinsGood()"
-                                style="font-size: 0.7rem; padding: 4px 8px; margin-right: 5px; border-color: var(--accent-green); color: var(--accent-green);">SET
-                                GOOD</button>
-                            <button type="button" id="toggle-grid-btn" class="btn btn-sm" onclick="togglePinTester()"
-                                style="font-size: 0.7rem; padding: 4px 8px;">OPEN CHECKER</button>
+                            <button type="button" class="btn btn-sm btn-accent-green" onclick="setAllPinsGood()"
+                                style="font-size: 0.7rem; padding: 4px 8px; margin-right: 5px;">SET GOOD</button>
+                            <button type="button" id="toggle-grid-btn" class="btn btn-sm btn-accent-cyan"
+                                onclick="togglePinTester()" style="font-size: 0.7rem; padding: 4px 8px;">OPEN
+                                CHECKER</button>
                         </div>
                     </div>
 
                     <input type="hidden" name="pin_check" id="pin_check_input"
                         value="{{ unit.pin_check if unit and unit.pin_check else '' }}">
 
+                    <!-- Pin Check Summary (Always Visible) -->
+                    <div id="pin-summary"
+                        style="background: var(--input-bg); padding: 10px; border-radius: 4px; border: 1px solid var(--card-border); margin-bottom: 10px; font-size: 0.9rem;">
+                        <span style="color: var(--text-muted);">No pin data</span>
+                    </div>
+
                     <!-- Visual Grid (Hidden by default) -->
                     <div id="visual-pin-tester"
-                        style="display: none; background: #000; border: 2px solid #333; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; color: #fff; margin-bottom: 10px;">
+                        style="display: none; background: black; border: 2px solid var(--border-dark); border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; color: var(--text-primary); margin-bottom: 10px;">
                         <div
                             style="display: flex; justify-content: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
                             <span style="color: var(--accent-cyan); font-weight: bold; letter-spacing: 1px;">MECHANIC
@@ -171,16 +207,10 @@
                     </div>
 
                     <!-- Auto-Diagnosis Result -->
-                    <div id="diagnosis-result"
-                        style="display: none; margin-top: 10px; margin-bottom: 10px; padding: 10px; border-radius: 8px; background: rgba(188, 19, 254, 0.1); border: 1px solid var(--accent-purple);">
-                        <strong style="color: var(--accent-purple); font-size: 0.9rem;">⚠️ Assistant Analysis:</strong>
-                        <div id="diagnosis-text" style="color: #fff; font-size: 0.9rem; margin-top: 5px;"></div>
-                    </div>
-
-                    <!-- Preview / Legacy Display -->
-                    <div id="pin-preview"
-                        style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; border: 1px solid var(--card-border); font-family: monospace; font-size: 0.9rem;">
-                        <span style="color: #666;">No Data</span>
+                    <div id="auto-diagnosis-result"
+                        style="display: none; margin-top: 15px; padding: 15px; background: rgba(188, 19, 254, 0.1); border-left: 3px solid var(--accent-purple); border-radius: 5px;">
+                        <strong style="color: var(--accent-purple); font-size: 0.9rem;">Assistant Analysis:</strong>
+                        <div id="diagnosis-text" style="margin-top: 8px; color: var(--text-secondary);"></div>
                     </div>
 
                     <div style="display: flex; gap: 10px;">
@@ -212,8 +242,8 @@
                     </option>
                     <option value="Testing" {% if unit and unit.status=='Testing' %}selected{% endif %}>Testing</option>
                     <option value="Done" {% if unit and unit.status=='Done' %}selected{% endif %}>Done</option>
-                    <option value="Delivered" {% if unit and unit.status=='Delivered' %}selected{% endif %}>Delivered
-                    </option>
+                    <option value="Sold" {% if unit and unit.status=='Sold' or unit.status=='Delivered' %}selected{%
+                        endif %}>Sold</option>
                     <option value="Cancelled" {% if unit and unit.status=='Cancelled' %}selected{% endif %}>Cancelled
                     </option>
                 </select>
@@ -234,42 +264,34 @@
                     placeholder="Log details here...">{{ unit.notes if unit else '' }}</textarea>
             </div>
         </div>
-
-        <div style="margin-top: 30px; text-align: right;">
-            <button type="submit" class="btn btn-primary" style="font-size: 1.2rem; padding: 15px 40px;">
-                {% if unit %}Update Unit{% else %}Register Unit{% endif %}
-            </button>
-        </div>
     </form>
 </div>
 
 <script>
     // Visual Pin Tester Logic
     const pinInput = document.getElementById('pin_check_input');
-    const pinPreview = document.getElementById('pin-preview');
     const visualTester = document.getElementById('visual-pin-tester');
     const toggleBtn = document.getElementById('toggle-grid-btn');
     const pinInputs = document.querySelectorAll('.pin-input');
 
     // Initial Load
     loadVisualData();
+    updatePinPreview(); // Show summary on page load
 
     function togglePinTester() {
         if (visualTester.style.display === 'none') {
             // Open Grid
             visualTester.style.display = 'block';
-            pinPreview.style.display = 'none';
             toggleBtn.textContent = 'CLOSE CHECKER';
             toggleBtn.style.borderColor = 'var(--accent-purple)';
             toggleBtn.style.color = 'var(--accent-purple)';
         } else {
             // Close Grid
             visualTester.style.display = 'none';
-            pinPreview.style.display = 'block';
             toggleBtn.textContent = 'OPEN CHECKER';
             toggleBtn.style.borderColor = 'var(--accent-cyan)';
             toggleBtn.style.color = 'var(--accent-cyan)';
-            updatePreview();
+            saveVisualData();
         }
     }
 
@@ -290,52 +312,62 @@
                 }
             });
 
+
             // Analyze
             analyzePins(jsonData);
 
             // Update Preview immediately (if grid is starting closed)
-            updatePreview(jsonData);
+            updatePinPreview();
 
         } catch (e) {
-            // Legacy Text
-            pinPreview.innerHTML = `<span style="color: var(--accent-cyan);">${data}</span>`;
+            // Legacy Text - update summary
+            const pinSummary = document.getElementById('pin-summary');
+            if (pinSummary && pinInput.value) {
+                pinSummary.innerHTML = `<span style="color: var(--accent-cyan);">${pinInput.value}</span>`;
+            }
         }
     }
 
-    function updatePreview(jsonData = null) {
-        if (!jsonData) {
-            // If not passed, re-read from inputs
-            jsonData = {};
-            pinInputs.forEach(input => {
-                if (input.value.trim()) jsonData[input.dataset.pin] = input.value.trim();
-            });
-        }
+    function updatePinPreview() {
+        const pinSummary = document.getElementById('pin-summary');
+        if (!pinSummary) return;
+
+        const data = pinInput.value ? JSON.parse(pinInput.value || '{}') : {};
+        const expectedOL = [2, 3, 10, 11, 14, 15, 22, 23];
 
         let olPins = [];
         let shortPins = [];
         let hasData = false;
+        let totalOLCount = 0;
 
-        const expectedOL = ['2', '3', '10', '11', '14', '15', '22', '23'];
-
-        for (const [pin, val] of Object.entries(jsonData)) {
-            hasData = true;
-            if (val.toUpperCase() === 'OL') {
-                if (!expectedOL.includes(pin)) {
-                    olPins.push(pin);
+        for (let pin = 1; pin <= 24; pin++) {
+            const val = data[pin.toString()]; // JSON keys are strings
+            if (val) {
+                hasData = true;
+                if (val === 'OL') {
+                    totalOLCount++;
+                    if (!expectedOL.includes(pin)) olPins.push(pin);
                 }
+                else if (isShort(val)) shortPins.push(pin);
             }
-            else if (isShort(val)) shortPins.push(pin);
+        }
+
+        // Check if ripped off (20+ OL pins out of 24)
+        if (totalOLCount >= 20) {
+            pinSummary.innerHTML = `<strong style="color: #ff4444;">PORT RIPPED OFF</strong> <span style="color: #888;">(${totalOLCount} pins OL)</span>`;
+            return;
         }
 
         if (!hasData) {
             // Check if legacy text logic applies
             if (!pinInput.value.trim().startsWith('{') && pinInput.value.trim().length > 0) {
-                pinPreview.innerHTML = `<span style="color: var(--accent-cyan);">${pinInput.value}</span>`;
+                pinSummary.innerHTML = `<span style="color: var(--accent-cyan);">${pinInput.value}</span>`;
                 return;
             }
-            pinPreview.innerHTML = '<span style="color: #666;">No Readings Recorded</span>';
+            pinSummary.innerHTML = '<span style="color: #666;">No pin data</span>';
             return;
         }
+
 
         let html = '';
         if (olPins.length > 0) {
@@ -348,7 +380,7 @@
             html += `<div style="color: var(--accent-green);"><strong>ALL PINS OK</strong> (Diode Mode)</div>`;
         }
 
-        pinPreview.innerHTML = html;
+        pinSummary.innerHTML = html || '<span style="color: #666;">No pin data</span>';
     }
 
     function updatePinStyle(input) {
@@ -358,16 +390,16 @@
 
         if (val === 'OL') {
             if (expectedOL.includes(pin)) {
-                input.style.color = '#ffffff'; // White (Expected OL - TX/RX)
+                input.style.color = 'var(--text-primary)'; // White (Expected OL - TX/RX)
                 input.style.fontWeight = 'normal';
             } else {
-                input.style.color = '#ff4444'; // Red (Fault)
+                input.style.color = 'var(--accent-red)'; // Red (Fault)
                 input.style.fontWeight = 'bold';
             }
         } else if (val === 'GND' || val === '0.000') {
-            input.style.color = '#00f3ff'; // Cyan/Blue
+            input.style.color = 'var(--accent-cyan)'; // Cyan/Blue
         } else {
-            input.style.color = '#0aff0a'; // Green
+            input.style.color = 'var(--accent-green)'; // Green
         }
     }
 
@@ -382,9 +414,11 @@
             }
         });
 
+
         if (hasData) {
             pinInput.value = JSON.stringify(data);
             analyzePins(data);
+            updatePinPreview(); // Update the summary display
         } else {
             // If cleared, maybe clear input?
             // pinInput.value = "";
@@ -467,6 +501,7 @@
             updatePinStyle(input);
         });
         saveVisualData();
+        updatePinPreview(); // Update the summary display
     }
 
     // Attach listeners
@@ -495,7 +530,7 @@
                     const labelInput = document.getElementById('labelInput');
                     labelInput.value = data.next_label;
                     // Flash effect
-                    labelInput.style.backgroundColor = 'rgba(188, 19, 254, 0.3)';
+                    labelInput.style.backgroundColor = 'var(--accent-purple-soft)';
                     setTimeout(() => {
                         labelInput.style.backgroundColor = '';
                     }, 500);
@@ -503,5 +538,16 @@
             })
             .catch(error => console.error('Error fetching next label:', error));
     }
+
+    // Modchip checkbox toggle
+    document.getElementById('modchip-check').addEventListener('change', function () {
+        const dropdown = document.getElementById('modchip-type');
+        dropdown.disabled = !this.checked;
+        if (!this.checked) {
+            dropdown.value = '';
+        } else if (dropdown.value === '') {
+            dropdown.value = 'Picofly'; // Default to Picofly
+        }
+    });
 </script>
 {% endblock %}

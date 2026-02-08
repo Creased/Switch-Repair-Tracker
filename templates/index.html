@@ -24,14 +24,17 @@
         <p style="color: var(--text-secondary);">Use your barcode scanner or enter manually below</p>
         <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px; align-items: center;">
             <div style="flex-grow: 1;">
-                <input type="text" id="manual-barcode" placeholder="Enter Barcode / Serial..."
-                    style="margin-bottom: 5px;"
-                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleScan(); }">
-                <div style="text-align: left; padding-left: 2px;">
-                    <input type="checkbox" id="qwerty-fix" checked
-                        style="width: auto; margin-right: 5px; vertical-align: middle;">
-                    <label for="qwerty-fix" style="color: var(--text-secondary); font-size: 0.8rem;">Fix QWERTY
-                        Scanner</label>
+                <div class="input-with-icon">
+                    <input type="text" id="manual-barcode" placeholder="Enter Barcode / Serial..."
+                        style="margin-bottom: 0;"
+                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleScan(); }">
+                    <button type="button" id="qwerty-toggle" class="icon-toggle active" title="Toggle QWERTY/AZERTY Fix"
+                        onclick="toggleQwertyFix()">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17c-.71 2.06-1.74 3.99-3.13 5.67-1.12-1.35-1.98-2.79-2.57-4.32L4.49 7.33c.71 2.19 1.84 4.25 3.39 6.09l-4.42 4.41L4.88 19.3l4.41-4.41 2.52 2.52 1.06-2.34zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z" />
+                        </svg>
+                    </button>
                 </div>
             </div>
             <button id="go-btn" onclick="handleScan()" class="btn btn-primary" style="height: 42px;">Go</button>
@@ -43,7 +46,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h2 style="margin: 0; color: var(--accent-cyan);">Recent Units</h2>
         <input type="text" id="searchInput" placeholder="Filter units..."
-            style="padding: 8px; border-radius: 4px; border: 1px solid var(--card-border); background: rgba(0,0,0,0.3); color: var(--text-primary); width: 250px;">
+            style="padding: 8px; border-radius: 4px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-primary); width: 250px;">
     </div>
 
     <table id="unitsTable">
@@ -61,18 +64,16 @@
         </thead>
         <tbody>
             {% for unit in units %}
-            <tr onclick="window.location.href='/unit/{{ unit.barcode }}'" style="cursor: pointer;">
+            <tr onclick="navigateToUnit('{{ unit.barcode }}')" style="cursor: pointer;">
                 <td style="font-weight: bold; color: var(--accent-purple);">{{ unit.label if unit.label else '-' }}</td>
                 <td style="font-family: monospace; color: var(--accent-cyan);">{{ unit.barcode }}</td>
                 <td>
                     {{ unit.model }}
-                    {% if unit.type == 'Dock' %}<span
-                        style="font-size:0.7rem; background:#333; padding:2px 4px; border-radius:4px;">DOCK</span>{%
-                    endif %}
+                    {% if unit.type == 'Dock' %}<span class="tag">DOCK</span>{% endif %}
                     {% if unit.patch_status and unit.patch_status != 'Unknown' %}
-                    {% set p_color = '#666' %}
+                    {% set p_color = 'var(--text-muted)' %}
                     {% if 'Unpatched' in unit.patch_status %}{% set p_color = 'var(--accent-green)' %}
-                    {% elif 'Possibly' in unit.patch_status %}{% set p_color = 'var(--accent-yellow)' %}
+                    {% elif 'Warning' in unit.patch_status %}{% set p_color = 'var(--accent-yellow)' %}
                     {% elif 'Patched' in unit.patch_status %}{% set p_color = 'var(--accent-red)' %}
                     {% endif %}
                     <div style="font-size: 0.75rem; color: {{ p_color }}; margin-top: 2px;">{{ unit.patch_status }}
@@ -82,11 +83,12 @@
                 <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
                     title="{{ unit.issue }}">
                     {{ unit.issue }}
-                    <!-- Hidden span for search filter to find notes/condition -->
-                    <span style="display:none;">{{ unit.notes }} {{ unit.condition_notes }} {{ unit.model }} {{
+                    <!-- Hidden span for search filter to find notes/condition/owner -->
+                    <span style="display:none;">{{ unit.owner }} {{ unit.notes }} {{ unit.condition_notes }} {{
+                        unit.model }} {{
                         unit.patch_status }}</span>
                 </td>
-                <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #aaa;"
+                <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-soft);"
                     title="{{ unit.condition_notes }}">
 
                     <!-- Visual Pin Check Logic -->
@@ -95,30 +97,28 @@
                     <span class="pin-summary" data-json='{{ unit.pin_check }}'
                         style="font-size: 0.8rem; margin-right: 5px;"></span>
                     {% else %}
-                    <span style="font-size: 0.8rem; color: #888; margin-right: 5px;">PIN: {{ unit.pin_check }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-dim); margin-right: 5px;">PIN: {{ unit.pin_check
+                        }}</span>
                     {% endif %}
                     {% endif %}
 
                     {{ unit.condition_notes if unit.condition_notes else '' }}
                 </td>
                 <td>
-                    <span class="status-badge 
-                            {% if unit.status == 'Received' %}status-received
-                            {% elif unit.status == 'Diagnosing' %}status-diagnosing
-                            {% elif unit.status == 'Waiting for Parts' %}status-waiting
-                            {% elif unit.status == 'Repairing' %}status-repairing
-                            {% elif unit.status == 'Testing' %}status-testing
-                            {% elif unit.status == 'Done' %}status-done
-                            {% elif unit.status == 'Delivered' %}status-delivered
-                            {% elif unit.status == 'Cancelled' %}status-cancelled
-                            {% endif %}
-                        ">
-                        {{ unit.status }}
-                    </span>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span class="status-badge status-{{ unit.status.lower().replace(' ', '-') }}">
+                            {{ unit.status }}
+                        </span>
+                        {% if unit.modchip %}
+                        <span class="status-badge status-modchip">
+                            {{ unit.modchip }}
+                        </span>
+                        {% endif %}
+                    </div>
                 </td>
                 <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ unit.updated_at[:16] }}</td>
                 <td>
-                    <a href="/unit/{{ unit.barcode }}" class="btn btn-sm">VIEW</a>
+                    <a href="/unit/{{ unit.barcode }}" class="btn btn-sm btn-accent-cyan">VIEW</a>
                 </td>
             </tr>
             {% else %}
@@ -138,6 +138,7 @@
         try {
             const data = JSON.parse(el.dataset.json);
             const olPins = [];
+            let totalOLCount = 0; // Track all OL pins including expected ones
 
             // Only showing OLs to save space
             // Expected OL pins (Normal): 2, 3, 10, 11, 14, 15, 22, 23
@@ -145,19 +146,23 @@
 
             for (const [pin, val] of Object.entries(data)) {
                 if (val.toUpperCase() === 'OL') {
+                    totalOLCount++;
                     if (!expectedOL.includes(pin)) {
                         olPins.push(pin);
                     }
                 }
             }
 
-            if (olPins.length > 0) {
-                el.innerHTML = `<span style="color:#ff4444; font-weight:bold;">OL: ${olPins.join(',')}</span>`;
+            // Check if ripped off (20+ OL pins out of 24)
+            if (totalOLCount >= 20) {
+                el.innerHTML = `<strong style="color:var(--accent-red);">RIPPED OFF</strong> <span style="color:var(--text-muted);">(${totalOLCount} OL)</span>`;
+            } else if (olPins.length > 0) {
+                el.innerHTML = `<span style="color:var(--accent-red); font-weight:bold;">OL: ${olPins.join(',')}</span>`;
             } else if (Object.keys(data).length > 0) {
-                el.innerHTML = `<span style="color:#0aff0a; font-weight:bold;">PINS OK</span>`;
+                el.innerHTML = `<span style="color:var(--accent-green); font-weight:bold;">PINS OK</span>`;
             } else {
                 // Empty JSON
-                el.innerHTML = `<span style="color:#666;">CHECKED</span>`;
+                el.innerHTML = `<span style="color:var(--text-muted);">CHECKED</span>`;
             }
         } catch (e) { console.error(e); }
     });
@@ -220,9 +225,43 @@
 </script>
 
 <script>
+    // Load QWERTY fix setting from localStorage
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.getElementById('qwerty-toggle');
+        if (!toggleBtn) return;
+
+        const savedSetting = localStorage.getItem('qwerty-fix-enabled');
+
+        // Default to true if not set
+        if (savedSetting === null) {
+            localStorage.setItem('qwerty-fix-enabled', 'true');
+            toggleBtn.classList.add('active');
+        } else {
+            if (savedSetting === 'true') {
+                toggleBtn.classList.add('active');
+            } else {
+                toggleBtn.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleQwertyFix() {
+        const toggleBtn = document.getElementById('qwerty-toggle');
+        const isActive = toggleBtn.classList.toggle('active');
+        localStorage.setItem('qwerty-fix-enabled', isActive ? 'true' : 'false');
+    }
+
+    function navigateToUnit(barcode) {
+        const fixEnabled = localStorage.getItem('qwerty-fix-enabled') === 'true';
+        if (fixEnabled) {
+            barcode = fixQwerty(barcode);
+        }
+        window.location.href = '/unit/' + barcode;
+    }
+
     function handleScan() {
         const input = document.getElementById('manual-barcode');
-        const fixEnabled = document.getElementById('qwerty-fix').checked;
+        const fixEnabled = localStorage.getItem('qwerty-fix-enabled') === 'true';
         let val = input.value.trim();
 
         if (val && fixEnabled) {

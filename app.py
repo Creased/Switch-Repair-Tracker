@@ -25,6 +25,18 @@ def init_db():
             db.cursor().executescript(f.read())
         db.commit()
 
+def fix_qwerty(barcode):
+    """Convert QWERTY-scanned barcode to AZERTY equivalent"""
+    qwerty_map = {
+        'A': 'Q', 'Q': 'A', 'Z': 'W', 'W': 'Z',
+        'a': 'q', 'q': 'a', 'z': 'w', 'w': 'z',
+        'm': ',', ',': 'm', 'M': '?', '?': 'M',
+        '&': '1', 'é': '2', '"': '3', "'": '4', '(': '5', 
+        '-': '6', 'è': '7', '_': '8', 'ç': '9', 'à': '0',
+        ')': '-', '=': '='
+    }
+    return ''.join(qwerty_map.get(char, char) for char in barcode)
+
 @app.route('/')
 def index():
     db = get_db()
@@ -56,6 +68,11 @@ def unit_detail(barcode):
         condition_notes = request.form.get('condition_notes')
         owner = request.form.get('owner')
         
+        # Modchip field
+        modchip_installed = request.form.get('modchip_installed')
+        modchip_type = request.form.get('modchip_type')
+        modchip = modchip_type if modchip_installed else None
+        
         # If model/type/patch_status are missing or generic, try SSNC
         # But if user manually set them (implied by POST), we might respect that.
         # However, for 'Console' type, we can re-verify patch status if model changed?
@@ -82,10 +99,10 @@ def unit_detail(barcode):
         if exists:
             query = '''
                 UPDATE units SET model = ?, issue = ?, status = ?, notes = ?, label = ?, type = ?, 
-                pin_check = ?, usb_c_reading = ?, amp_draw = ?, condition_notes = ?, owner = ?,
+                pin_check = ?, usb_c_reading = ?, amp_draw = ?, condition_notes = ?, owner = ?, modchip = ?,
                 updated_at = CURRENT_TIMESTAMP
             '''
-            params = [model, issue, status, notes, label, unit_type, pin_check, usb_c_reading, amp_draw, condition_notes, owner]
+            params = [model, issue, status, notes, label, unit_type, pin_check, usb_c_reading, amp_draw, condition_notes, owner, modchip]
             
             if patch_status:
                 query += ', patch_status = ?'
@@ -106,15 +123,24 @@ def unit_detail(barcode):
 
             db.execute('''
                 INSERT INTO units (barcode, model, issue, status, notes, label, type, patch_status,
-                pin_check, usb_c_reading, amp_draw, condition_notes, owner)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                pin_check, usb_c_reading, amp_draw, condition_notes, owner, modchip)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (barcode, model, issue, status, notes, label, unit_type, patch_status, 
-                  pin_check, usb_c_reading, amp_draw, condition_notes, owner))
+                  pin_check, usb_c_reading, amp_draw, condition_notes, owner, modchip))
             
         db.commit()
         return redirect(url_for('unit_detail', barcode=barcode))
 
     unit = db.execute('SELECT * FROM units WHERE barcode = ?', (barcode,)).fetchone()
+    
+    # If not found, try QWERTY-fixed version
+    if not unit:
+        fixed_barcode = fix_qwerty(barcode)
+        if fixed_barcode != barcode:  # Only if translation actually changed something
+            unit_fixed = db.execute('SELECT * FROM units WHERE barcode = ?', (fixed_barcode,)).fetchone()
+            if unit_fixed:
+                # Redirect to the correct barcode
+                return redirect(url_for('unit_detail', barcode=fixed_barcode))
     
     # Auto-filling for new scans (GET request for non-existent unit)
     if not unit:

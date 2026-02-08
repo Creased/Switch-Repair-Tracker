@@ -7,3 +7,7 @@ venv/
 temp_notion_export_inner/
 *.db-journal
 test_label.py
+repairs.db
+repairs_backup.db
+pdf_content.txt
+How_to_analyse_nintendo_switch.pdf
