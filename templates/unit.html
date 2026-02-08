@@ -1,267 +1,274 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block head %}
 <style>
     #modchip-type:disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }
 </style>
-<div style="margin-bottom: 20px;">
+{% endblock %}
+
+{% block content %}
+<div class="unit-nav-bar">
     <a href="/" class="btn">&larr; Back to Dashboard</a>
 </div>
 
 <div class="glass-card">
     <form method="POST">
-        <div
-            style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 1px solid var(--card-border); padding-bottom: 20px;">
+        <div class="unit-header-container">
             <div>
-                <h1 style="font-family: monospace; letter-spacing: 0;">{{ barcode }}</h1>
-                <p style="color: var(--text-secondary);">
-                    {% if unit %}
-                    Rate In: {{ unit.created_at }} <!-- Placeholder for now -->
-                    {% else %}
-                    New Unit Entry
+                <h1 class="barcode-text">{{ barcode }}</h1>
+                <div class="registration-info">
+                    {% if unit and unit.patch_status %}
+                    {% set status_class = 'security-badge unknown' %}
+                    {% if unit.patch_status == 'Unpatched' %}{% set status_class = 'security-badge unpatched' %}
+                    {% elif unit.patch_status == 'Patched' %}{% set status_class = 'security-badge patched' %}{% endif
+                    %}
+                    <span class="{{ status_class }}">
+                        {{ unit.patch_status.upper() }}
+                    </span>
                     {% endif %}
-                </p>
+                    <span>
+                        {% if unit %}
+                        Registered: {{ unit.created_at }}
+                        {% else %}
+                        Draft Entry
+                        {% endif %}
+                    </span>
+                </div>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                {% if unit %}
-                <span class="status-badge 
-                    {% if unit.status == 'Received' %}status-received
-                    {% elif unit.status == 'Done' %}status-done
-                    {% elif unit.status == 'Waiting' %}status-waiting
-                    {% else %}status-in-progress{% endif %}" style="font-size: 1.2rem; padding: 10px 20px;">
-                    {{ unit.status }}
-                </span>
-                {% else %}
-                <span class="status-badge status-received" style="font-size: 1.2rem; padding: 10px 20px;">NEW</span>
-                {% endif %}
+            <div class="header-actions">
+                <!-- Status tag removed to avoid redundancy with footer dropdown -->
                 <button type="submit" class="btn btn-primary" style="font-size: 1rem; padding: 12px 30px;">
-                    {% if unit %}Update Unit{% else %}Register Unit{% endif %}
+                    {% if unit and unit.id %}Update Unit{% else %}Register Unit{% endif %}
                 </button>
             </div>
         </div>
         <div class="grid-2">
+            <!-- Left Column: Unit Identity & Active Triage -->
             <div>
-                <label style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Board
-                    Label / ID</label>
-                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
-                    <input type="text" name="label" id="labelInput"
-                        value="{{ unit.label if unit and unit.label else '' }}" placeholder="e.g. SW001"
-                        style="border-color: var(--accent-purple); margin-bottom: 0; flex: 1;">
-                    <button type="button" class="btn btn-sm btn-accent-purple" onclick="autoLabel()"
-                        style="padding: 0 15px; font-size: 0.8rem; display: flex; align-items: center;">
-                        AUTO
-                    </button>
+                <!-- Identity Group -->
+                <div class="diagnosis-section identity-section">
+                    <div class="diagnosis-section-title identity-header">
+                        <span>UNIT IDENTITY</span>
+                    </div>
+
+                    <div class="identity-grid">
+                        <div class="form-group mb-0">
+                            <label class="field-label">Board Label / ID</label>
+                            <div class="label-row">
+                                <input type="text" name="label" id="labelInput"
+                                    value="{{ unit['label'] if unit and unit['label'] else '' }}"
+                                    placeholder="e.g. SW001" class="mb-0 flex-1">
+                                <button type="button" class="btn btn-sm btn-accent-purple"
+                                    onclick="autoLabel()">AUTO</button>
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="field-label">Owner / Source</label>
+                            <input type="text" name="owner" placeholder="Owner or Source"
+                                value="{{ unit.owner if unit and unit.owner else '' }}" class="mb-0">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="field-label">Device Model</label>
+                            <div class="model-row">
+                                <select name="type" class="flex-1 mb-0">
+                                    <option value="Console" {% if not unit or unit.type=='Console' %}selected{% endif
+                                        %}>Console</option>
+                                    <option value="Dock" {% if unit and unit.type=='Dock' %}selected{% endif %}>Dock
+                                    </option>
+                                    <option value="Accessory" {% if unit and unit.type=='Accessory' %}selected{% endif
+                                        %}>Accessory</option>
+                                </select>
+                                <input type="text" name="model" value="{{ unit.model if unit else 'Nintendo Switch' }}"
+                                    placeholder="e.g. Switch V2" class="flex-2 mb-0">
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="field-label">Reported Issue</label>
+                            <input type="text" name="issue" value="{{ unit.issue if unit and unit.issue else '' }}"
+                                placeholder="Fault symptom" class="mb-0">
+                        </div>
+                    </div>
+
+
                 </div>
 
-                <label style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Owner
-                    (Optional)</label>
-                <input type="text" name="owner" placeholder="Owner name (for tracking repairs)"
-                    value="{{ unit.owner if unit and unit.owner else '' }}">
-
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 8px; display: block; margin-top: 15px;">
-                    Modchip
-                </label>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <input type="checkbox" id="modchip-check" class="custom-checkbox" name="modchip_installed" {% if
-                        unit and unit.modchip %}checked{% endif %}>
-                    <select name="modchip_type" id="modchip-type" {% if not unit or not unit.modchip %}disabled{% endif
-                        %} style="flex: 1; padding-right: 35px;">
-                        <option value="">No Modchip</option>
-                        <option value="Picofly" {% if unit and unit.modchip=='Picofly' %}selected{% endif %}>Picofly
-                        </option>
-                        <option value="SX Core" {% if unit and unit.modchip=='SX Core' %}selected{% endif %}>SX Core
-                        </option>
-                        <option value="Modchip" {% if unit and unit.modchip=='Modchip' %}selected{% endif %}>Generic
-                            Modchip</option>
-                    </select>
-                </div>
-
-                <div style="margin-top: 20px; border-top: 1px solid var(--card-border); padding-top: 20px;"></div>
-
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Device
-                    Model</label>
-                <div style="display: flex; gap: 10px;">
-                    <select name="type" style="flex: 1;">
-                        <option value="Console" {% if not unit or unit.type=='Console' %}selected{% endif %}>Console
-                        </option>
-                        <option value="Dock" {% if unit and unit.type=='Dock' %}selected{% endif %}>Dock</option>
-                        <option value="Accessory" {% if unit and unit.type=='Accessory' %}selected{% endif %}>Accessory
-                        </option>
-                        <option value="Other" {% if unit and unit.type=='Other' %}selected{% endif %}>Other</option>
-                    </select>
-                    <input type="text" name="model" value="{{ unit.model if unit else 'Nintendo Switch' }}"
-                        placeholder="e.g. Switch V2" style="flex: 2;">
-                </div>
-
-                {% if unit and unit.patch_status %}
-                <div style="margin-top: 5px; font-size: 0.9rem;">
-                    <span style="color: var(--text-secondary);">Patch Status: </span>
-                    {% set status_color = 'var(--accent-yellow)' %}
-                    {% if unit.patch_status == 'Unpatched' %}
-                    {% set status_color = 'var(--accent-green)' %}
-                    {% elif unit.patch_status == 'Warning' %}
-                    {% set status_color = 'var(--accent-yellow)' %}
-                    {% elif unit.patch_status == 'Patched' %}
-                    {% set status_color = 'var(--accent-red)' %}
-                    {% endif %}
-                    <span style="font-weight: bold; color: {{ status_color }};">{{ unit.patch_status }}</span>
-                </div>
-                {% endif %}
-
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Reported
-                    Issue</label>
-                <input type="text" name="issue" value="{{ unit.issue if unit and unit.issue else '' }}"
-                    placeholder="e.g. Joysticks drift, No Power">
-
-                <!-- Diagnostics Section -->
-                <div
-                    style="background: var(--input-bg); padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid var(--card-border);">
-                    <h3
-                        style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 10px; border-bottom: 1px solid var(--card-border); padding-bottom: 5px;">
-                        Diagnostics</h3>
-
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <label style="font-size: 0.9rem; color: var(--text-light); margin: 0;">USB-C Pin Check</label>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-accent-green" onclick="setAllPinsGood()"
-                                style="font-size: 0.7rem; padding: 4px 8px; margin-right: 5px;">SET GOOD</button>
-                            <button type="button" id="toggle-grid-btn" class="btn btn-sm btn-accent-cyan"
-                                onclick="togglePinTester()" style="font-size: 0.7rem; padding: 4px 8px;">OPEN
-                                CHECKER</button>
+                <!-- Diagnostic Suite -->
+                <!-- USB-C Pin Check -->
+                <div class="diagnosis-section">
+                    <div class="diagnosis-section-title">
+                        <span>USB-C PIN CHECK</span>
+                        <div class="pin-actions">
+                            <button type="button" class="btn btn-sm btn-accent-green" onclick="setAllPinsGood()">SET
+                                GOOD</button>
+                            <button type="button" id="toggle-grid-btn" class="btn btn-sm"
+                                onclick="togglePinTester()">OPEN CHECKER</button>
                         </div>
                     </div>
 
                     <input type="hidden" name="pin_check" id="pin_check_input"
                         value="{{ unit.pin_check if unit and unit.pin_check else '' }}">
 
-                    <!-- Pin Check Summary (Always Visible) -->
-                    <div id="pin-summary"
-                        style="background: var(--input-bg); padding: 10px; border-radius: 4px; border: 1px solid var(--card-border); margin-bottom: 10px; font-size: 0.9rem;">
-                        <span style="color: var(--text-muted);">No pin data</span>
+                    <div id="pin-summary" class="pin-summary-box">
+                        <span class="text-dim-small">No pin data</span>
                     </div>
 
                     <!-- Visual Grid (Hidden by default) -->
-                    <div id="visual-pin-tester"
-                        style="display: none; background: black; border: 2px solid var(--border-dark); border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; color: var(--text-primary); margin-bottom: 10px;">
-                        <div
-                            style="display: flex; justify-content: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
-                            <span style="color: var(--accent-cyan); font-weight: bold; letter-spacing: 1px;">MECHANIC
-                                TESTER MODE</span>
+                    <div id="visual-pin-tester" class="visual-pin-tester" style="display: none;">
+                        <div class="tester-header">
+                            <span class="tester-title">MECHANIC TESTER MODE</span>
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; gap: 20px;">
-                            <!-- Side A (1-12) -->
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                                <div style="text-align: center; color: #666; font-size: 0.7rem; margin-bottom: 5px;">
-                                    SIDE A</div>
+                        <div class="pin-grid-columns">
+                            <!-- Side A -->
+                            <div class="pin-column">
                                 {% set pin_labels_a = {1:'GND', 2:'TX1+', 3:'TX1-', 4:'VBUS', 5:'CC1', 6:'D+', 7:'D-',
                                 8:'SBU1', 9:'VBUS', 10:'RX2-', 11:'RX2+', 12:'GND'} %}
                                 {% for i in range(1, 13) %}
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="color: #888; font-size: 0.9rem; width: 25px;">{% if i < 10 %}0{%
-                                                endif %}{{i}}</span>
-                                                <span
-                                                    style="color: var(--accent-cyan); font-size: 0.8rem; font-weight: bold; width: 40px; font-family: sans-serif;">{{
-                                                    pin_labels_a[i] }}</span>
+                                <div class="pin-row">
+                                    <div class="pin-label-group">
+                                        <span class="pin-num">{% if i < 10 %}0{% endif %}{{i}}</span>
+                                                <span class="pin-name">{{ pin_labels_a[i] }}</span>
                                     </div>
-                                    <input type="text" class="pin-input" data-pin="{{i}}" maxlength="5"
-                                        style="background: #111; border: 1px solid #222; color: #0aff0a; width: 100%; text-align: right; padding: 2px 5px; font-size: 0.9rem; letter-spacing: 1px;"
+                                    <input type="text" class="pin-input pin-input-right" data-pin="{{i}}" maxlength="5"
                                         placeholder="---">
                                 </div>
                                 {% endfor %}
                             </div>
 
-                            <!-- Divider -->
-                            <div style="width: 1px; background: #333;"></div>
-
-                            <!-- Side B (13-24) -->
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                                <div style="text-align: center; color: #666; font-size: 0.7rem; margin-bottom: 5px;">
-                                    SIDE B</div>
+                            <!-- Side B -->
+                            <div class="pin-column">
                                 {% set pin_labels_b = {13:'GND', 14:'RX1+', 15:'RX1-', 16:'VBUS', 17:'SBU2', 18:'D-',
                                 19:'D+', 20:'CC2', 21:'VBUS', 22:'TX2-', 23:'TX2+', 24:'GND'} %}
                                 {% for i in range(13, 25) %}
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <input type="text" class="pin-input" data-pin="{{i}}" maxlength="5"
-                                        style="background: #111; border: 1px solid #222; color: #0aff0a; width: 100%; text-align: left; padding: 2px 5px; font-size: 0.9rem; letter-spacing: 1px;"
+                                <div class="pin-row">
+                                    <input type="text" class="pin-input pin-input-left" data-pin="{{i}}" maxlength="5"
                                         placeholder="---">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span
-                                            style="color: var(--accent-cyan); font-size: 0.8rem; font-weight: bold; width: 40px; text-align: right; font-family: sans-serif;">{{
-                                            pin_labels_b[i] }}</span>
-                                        <span
-                                            style="color: #888; font-size: 0.9rem; width: 25px; text-align: right;">{{i}}</span>
+                                    <div class="pin-label-group">
+                                        <span class="pin-name text-right">{{ pin_labels_b[i] }}</span>
+                                        <span class="pin-num text-right">{{i}}</span>
                                     </div>
                                 </div>
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
-
-                    <!-- Auto-Diagnosis Result -->
-                    <div id="auto-diagnosis-result"
-                        style="display: none; margin-top: 15px; padding: 15px; background: rgba(188, 19, 254, 0.1); border-left: 3px solid var(--accent-purple); border-radius: 5px;">
-                        <strong style="color: var(--accent-purple); font-size: 0.9rem;">Assistant Analysis:</strong>
-                        <div id="diagnosis-text" style="margin-top: 8px; color: var(--text-secondary);"></div>
+                </div>
+                <!-- Automated Pin Diagnosis Result (Hidden by default) -->
+                <div id="auto-diagnosis-result" class="diagnosis-card"
+                    style="display: none; margin-top: 15px; border-left: 4px solid var(--accent-orange);">
+                    <div class="diagnosis-header"
+                        style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">
+                        <span class="diagnosis-title" style="color: var(--accent-orange);">⚠️ PIN ANALYSIS
+                            FINDINGS</span>
                     </div>
-
-                    <div style="display: flex; gap: 10px;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 0.9rem; color: #ccc;">USB-C Reading</label>
-                            <input type="text" name="usb_c_reading"
-                                value="{{ unit.usb_c_reading if unit and unit.usb_c_reading else '' }}"
-                                placeholder="e.g. 15V/0.45A">
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 0.9rem; color: #ccc;">Battery Amps (Harness)</label>
-                            <input type="text" name="amp_draw"
-                                value="{{ unit.amp_draw if unit and unit.amp_draw else '' }}" placeholder="e.g. 0.19A">
-                        </div>
+                    <div id="diagnosis-text" style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.5;">
                     </div>
                 </div>
 
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 15px;">Current
-                    Status</label>
-                <select name="status">
-                    <option value="Received" {% if unit and unit.status=='Received' %}selected{% endif %}>Received
-                    </option>
-                    <option value="Diagnosing" {% if unit and unit.status=='Diagnosing' %}selected{% endif %}>Diagnosing
-                    </option>
-                    <option value="Waiting for Parts" {% if unit and unit.status=='Waiting for Parts' %}selected{% endif
-                        %}>Waiting for Parts</option>
-                    <option value="Repairing" {% if unit and unit.status=='Repairing' %}selected{% endif %}>Repairing
-                    </option>
-                    <option value="Testing" {% if unit and unit.status=='Testing' %}selected{% endif %}>Testing</option>
-                    <option value="Done" {% if unit and unit.status=='Done' %}selected{% endif %}>Done</option>
-                    <option value="Sold" {% if unit and unit.status=='Sold' or unit.status=='Delivered' %}selected{%
-                        endif %}>Sold</option>
-                    <option value="Cancelled" {% if unit and unit.status=='Cancelled' %}selected{% endif %}>Cancelled
-                    </option>
-                </select>
+                <!-- Port Reading -->
+                <div class="diagnosis-section">
+                    <div class="diagnosis-section-title"><span>PORT READING (INITIAL)</span></div>
+                    <div class="form-group mb-0">
+                        <label class="field-label sub">NO BATTERY IDLE MEASUREMENT</label>
+                        <div class="port-reading-inputs">
+                            <input type="text" name="usb_c_reading" id="usb_c_input"
+                                value="{{ unit['usb_c_reading'] if unit and unit['usb_c_reading'] else '' }}"
+                                placeholder="e.g. 15V/0.45A" class="mb-0 flex-1">
+                            <button type="button" class="btn btn-sm btn-diag-analyze"
+                                onclick="analyzePortReading()">ANALYZE</button>
+                        </div>
+                    </div>
+                    <div id="port-diagnosis-container" class="diagnosis-container hidden"></div>
+                </div>
+
+                <!-- Boot Analysis -->
+                <div class="diagnosis-section">
+                    <div class="diagnosis-section-title"><span>BOOT STAGE ANALYSIS</span></div>
+                    <div class="boot-analysis-grid">
+                        <div class="analysis-col-method">
+                            <label class="field-label sub">TEST METHOD</label>
+                            <select id="test-method-select" class="mb-0">
+                                <option value="battery">Battery Connected</option>
+                                <option value="bench">Bench Power Supply (4.2V)</option>
+                                <option value="bypass">10K Resistor Bypass</option>
+                                <option value="no_battery">USB-C Input (No Battery)</option>
+                            </select>
+                        </div>
+                        <div class="analysis-col-amps">
+                            <label class="field-label sub">MEASURED VALUES (Volts / Amps)</label>
+                            <div class="port-reading-inputs">
+                                <input type="text" name="amp_draw" id="amp_draw_input"
+                                    value="{{ unit.amp_draw if unit and unit.amp_draw else '' }}"
+                                    placeholder="e.g. 15V/0.05A" class="mb-0 flex-1">
+                                <button type="button" class="btn btn-sm btn-diag-analyze"
+                                    onclick="analyzeBootStage()">ANALYZE</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="boot-diagnosis-container" class="diagnosis-container hidden"></div>
+                </div>
+
+                <!-- Final State & Outcomes -->
+                <div class="diagnosis-section result-section">
+                    <div class="diagnosis-section-title result-header">
+                        <span>RESULT & STATUS</span>
+                    </div>
+                    <div class="result-row">
+                        <label class="field-label purple mb-0 flex-1">MODCHIP INSTALLED</label>
+                        <select name="modchip_type" id="modchip-type" class="mb-0 flex-1-5">
+                            <option value="">None</option>
+                            <option value="Picofly" {% if unit and unit.modchip=='Picofly' %}selected{% endif %}>Picofly
+                            </option>
+                            <option value="SX Core" {% if unit and unit.modchip=='SX Core' %}selected{% endif %}>SX Core
+                            </option>
+                            <option value="Modchip" {% if unit and unit.modchip=='Modchip' %}selected{% endif %}>Generic
+                            </option>
+                        </select>
+                    </div>
+                    <div class="result-row border-top pt-3 mt-3">
+                        <label class="field-label purple mb-0 flex-1">REPAIR STAGE</label>
+                        <select name="status" class="mb-0 flex-1-5">
+                            <option value="Received" {% if unit and unit.status=='Received' %}selected{% endif %}>
+                                Received</option>
+                            <option value="Diagnosing" {% if unit and unit.status=='Diagnosing' %}selected{% endif %}>
+                                Diagnosing</option>
+                            <option value="Waiting for Parts" {% if unit and unit.status=='Waiting for Parts'
+                                %}selected{% endif %}>Waiting for Parts</option>
+                            <option value="Repairing" {% if unit and unit.status=='Repairing' %}selected{% endif %}>
+                                Repairing</option>
+                            <option value="Testing" {% if unit and unit.status=='Testing' %}selected{% endif %}>Testing
+                            </option>
+                            <option value="Done" {% if unit and unit.status=='Done' %}selected{% endif %}>Done</option>
+                            <option value="Sold" {% if unit and unit.status=='Sold' or unit.status=='Delivered'
+                                %}selected{% endif %}>Sold</option>
+                            <option value="Cancelled" {% if unit and unit.status=='Cancelled' %}selected{% endif %}>
+                                Cancelled</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Condition
-                    Notes / Summary</label>
-                <input type="text" name="condition_notes"
-                    value="{{ unit.condition_notes if unit and unit.condition_notes else '' }}"
-                    placeholder="e.g. Picofly Installed, Digitizer needed">
+            <!-- Right Column: Documentation Record -->
+            <div class="documentation-column">
+                <div class="diagnosis-section summary-group mt-0">
+                    <div class="diagnosis-section-title">
+                        <span>QUICK SUMMARY / TAGS</span>
+                    </div>
+                    <input type="text" name="condition_notes"
+                        value="{{ unit.condition_notes if unit and unit.condition_notes else '' }}"
+                        placeholder="e.g. Picofly, Needs Shell" class="mb-0">
+                </div>
 
-                <label
-                    style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 5px; display: block; margin-top: 10px;">Repair
-                    Log / Notes</label>
-                <textarea name="notes" rows="12"
-                    placeholder="Log details here...">{{ unit.notes if unit else '' }}</textarea>
+                <div class="diagnosis-section notes-group mt-0">
+                    <div class="diagnosis-section-title">
+                        <span>FULL REPAIR LOG & HISTORY</span>
+                    </div>
+                    <textarea name="notes" class="repair-log-container"
+                        placeholder="Detailed history of repairs, parts replaced, and findings...">{{ unit.notes if unit else '' }}</textarea>
+                </div>
             </div>
         </div>
     </form>
@@ -283,14 +290,14 @@
             // Open Grid
             visualTester.style.display = 'block';
             toggleBtn.textContent = 'CLOSE CHECKER';
-            toggleBtn.style.borderColor = 'var(--accent-purple)';
-            toggleBtn.style.color = 'var(--accent-purple)';
+            // Use Class for Styling
+            toggleBtn.classList.add('btn-active-purple');
         } else {
             // Close Grid
             visualTester.style.display = 'none';
             toggleBtn.textContent = 'OPEN CHECKER';
-            toggleBtn.style.borderColor = 'var(--accent-cyan)';
-            toggleBtn.style.color = 'var(--accent-cyan)';
+            // Remove Class for Styling
+            toggleBtn.classList.remove('btn-active-purple');
             saveVisualData();
         }
     }
@@ -390,16 +397,16 @@
 
         if (val === 'OL') {
             if (expectedOL.includes(pin)) {
-                input.style.color = 'var(--text-primary)'; // White (Expected OL - TX/RX)
+                input.style.color = 'var(--text-primary)';
                 input.style.fontWeight = 'normal';
             } else {
-                input.style.color = 'var(--accent-red)'; // Red (Fault)
+                input.style.color = 'var(--pin-value-red)';
                 input.style.fontWeight = 'bold';
             }
         } else if (val === 'GND' || val === '0.000') {
-            input.style.color = 'var(--accent-cyan)'; // Cyan/Blue
+            input.style.color = 'var(--pin-value-cyan)';
         } else {
-            input.style.color = 'var(--accent-green)'; // Green
+            input.style.color = 'var(--pin-value-green)';
         }
     }
 
@@ -426,7 +433,7 @@
     }
 
     function analyzePins(data) {
-        const resultDiv = document.getElementById('diagnosis-result');
+        const resultDiv = document.getElementById('auto-diagnosis-result');
         const resultText = document.getElementById('diagnosis-text');
         let findings = [];
         let olCount = 0;
@@ -539,15 +546,154 @@
             .catch(error => console.error('Error fetching next label:', error));
     }
 
-    // Modchip checkbox toggle
-    document.getElementById('modchip-check').addEventListener('change', function () {
-        const dropdown = document.getElementById('modchip-type');
-        dropdown.disabled = !this.checked;
-        if (!this.checked) {
-            dropdown.value = '';
-        } else if (dropdown.value === '') {
-            dropdown.value = 'Picofly'; // Default to Picofly
+    // Modchip checkbox toggle removed - handling via dropdown only
+
+    // Boot Diagnosis Logic
+    async function analyzePortReading() {
+        const portVal = document.getElementById('usb_c_input').value.trim();
+        const container = document.getElementById('port-diagnosis-container');
+
+        if (!portVal) {
+            alert('Please enter a port reading first');
+            return;
         }
-    });
+
+        container.innerHTML = '<div style="color: var(--text-dim); font-size: 0.8rem;">Analyzing Port...</div>';
+        container.style.display = 'block';
+
+        try {
+            const res = await fetch('/api/diagnose-boot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amp_draw: portVal,
+                    test_method: 'no_battery'
+                })
+            });
+            const data = await res.json();
+
+            const severityColors = {
+                'critical': 'var(--accent-red)',
+                'high': 'var(--accent-orange)',
+                'medium': 'var(--accent-yellow)',
+                'low': 'var(--accent-cyan)',
+                'none': 'var(--accent-green)'
+            };
+
+            const color = severityColors[data.severity] || 'var(--accent-purple)';
+            const bg = (data.severity === 'none') ? 'rgba(10, 255, 10, 0.1)' : `rgba(255, 255, 255, 0.05)`;
+
+            container.innerHTML = `
+                <div class="diagnosis-card" style="--severity-color: ${color}; --severity-bg: ${bg}; border-left: 4px solid ${color};">
+                    <div class="diagnosis-header">
+                        <span class="diagnosis-title">Initial Port Analysis</span>
+                        <span class="severity-badge">${data.severity}</span>
+                    </div>
+                    <div class="diagnosis-stage">${data.stage}</div>
+                    <div class="diagnosis-fault">Likely: <strong>${data.fault}</strong></div>
+                    <div class="diagnosis-action">${data.action}</div>
+                    <button type="button" class="btn btn-copy-diag" onclick="copyDiagnosisToNotes('${data.stage}', '${data.fault}')">
+                        COPY TO REPAIR LOG
+                    </button>
+                </div>
+            `;
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = '<div style="color: var(--accent-red); font-size: 0.8rem;">Error analyzing port</div>';
+        }
+    }
+
+    async function analyzeBootStage() {
+        const ampVal = document.getElementById('amp_draw_input').value.trim();
+        const method = document.getElementById('test-method-select').value;
+        const container = document.getElementById('boot-diagnosis-container');
+
+        if (!ampVal) {
+            alert('Please enter an amp value first');
+            return;
+        }
+
+        container.innerHTML = '<div style="color: var(--text-dim); font-size: 0.8rem;">Analyzing...</div>';
+        container.style.display = 'block';
+
+        try {
+            const res = await fetch('/api/diagnose-boot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amp_draw: ampVal,
+                    test_method: method
+                })
+            });
+            const data = await res.json();
+
+            const severityColors = {
+                'critical': 'var(--accent-red)',
+                'high': 'var(--accent-orange)',
+                'medium': 'var(--accent-yellow)',
+                'low': 'var(--accent-cyan)',
+                'none': 'var(--accent-green)'
+            };
+
+            const severityBgs = {
+                'critical': 'rgba(255, 68, 68, 0.2)',
+                'high': 'rgba(255, 165, 0, 0.2)',
+                'medium': 'rgba(255, 234, 0, 0.2)',
+                'low': 'rgba(0, 243, 255, 0.2)',
+                'none': 'rgba(10, 255, 10, 0.2)'
+            };
+
+            const color = severityColors[data.severity] || 'var(--accent-purple)';
+            const bg = severityBgs[data.severity] || 'rgba(188, 19, 254, 0.1)';
+
+            const methodDisplay = {
+                'battery': 'BATTERY CONNECTED',
+                'bench': 'BENCH POWER SUPPLY (4.2V)',
+                'bypass': '10K RESISTOR BYPASS',
+                'no_battery': 'USB-C INPUT (NO BATTERY)'
+            };
+            const methodLabel = methodDisplay[data.method_used] || data.method_used.toUpperCase();
+
+            container.innerHTML = `
+                <div class="diagnosis-card" style="--severity-color: ${color}; --severity-bg: ${bg}">
+                    <div class="diagnosis-header">
+                        <span class="diagnosis-title">Boot Analysis (${methodLabel})</span>
+                        <span class="severity-badge">${data.severity}</span>
+                    </div>
+                    <div class="diagnosis-stage">${data.stage}</div>
+                    <div class="diagnosis-fault">Likely: <strong>${data.fault}</strong></div>
+                    <div class="diagnosis-action">${data.action}</div>
+                    <button type="button" class="btn btn-copy-diag" onclick="copyDiagnosisToNotes('${data.stage}', '${data.fault}')">
+                        COPY TO REPAIR LOG
+                    </button>
+                </div>
+            `;
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = '<div style="color: var(--accent-red); font-size: 0.8rem;">Error analyzing boot stage</div>';
+        }
+    }
+
+    function copyDiagnosisToNotes(stage, fault) {
+        const notesArea = document.getElementsByName('notes')[0];
+        const date = new Date().toLocaleDateString();
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const diagText = `\n[${date} ${timestamp}] Diagnostic: ${stage} - Likely Fault: ${fault}`;
+
+        notesArea.value += diagText;
+        // Scroll to bottom
+        notesArea.scrollTop = notesArea.scrollHeight;
+
+        // Visual feedback on button
+        const btn = document.querySelector('.btn-copy-diag');
+        const originalText = btn.textContent;
+        btn.textContent = 'COPIED!';
+        btn.classList.add('btn-success');
+
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('btn-success');
+        }, 1500);
+    }
 </script>
 {% endblock %}
