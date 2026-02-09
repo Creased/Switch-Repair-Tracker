@@ -79,7 +79,6 @@
                 <td style="font-family: monospace; color: var(--accent-cyan);">{{ unit.barcode }}</td>
                 <td>
                     {{ unit.model }}
-                    {% if unit.type == 'Dock' %}<span class="tag">DOCK</span>{% endif %}
                     {% if unit.patch_status and unit.patch_status != 'Unknown' %}
                     {% set p_color = 'var(--text-dim)' %}
                     {% if 'Unpatched' in unit.patch_status %}{% set p_color = 'var(--accent-green)' %}
@@ -106,7 +105,7 @@
                     <!-- Visual Pin Check Logic -->
                     {% if unit.pin_check %}
                     {% if unit.pin_check.startswith('{') %}
-                    <span class="pin-summary" data-json='{{ unit.pin_check }}'
+                    <span class="pin-summary" data-json='{{ unit.pin_check }}' data-type="{{ unit.type }}"
                         style="font-size: 0.8rem; margin-right: 5px;"></span>
                     {% else %}
                     <span style="font-size: 0.8rem; color: var(--text-dim); margin-right: 5px;">PIN: {{ unit.pin_check
@@ -149,12 +148,23 @@
     document.querySelectorAll('.pin-summary').forEach(el => {
         try {
             const data = JSON.parse(el.dataset.json);
+            const isDock = el.dataset.type === 'Dock';
+
             const olPins = [];
             let totalOLCount = 0; // Track all OL pins including expected ones
 
-            // Only showing OLs to save space
-            // Expected OL pins (Normal): 2, 3, 10, 11, 14, 15, 22, 23
-            const expectedOL = ['2', '3', '10', '11', '14', '15', '22', '23'];
+            // Expected OL pins (Normal)
+            let expectedOL = [];
+            if (isDock) {
+                // Dock: Data/CC lines are normally OL.
+                // Expected OL: 2,3,5,6,7,8,10,11,14,15,17,18,19,20,22,23
+                // (Basically everything except GND and VBUS)
+                // VBUS: 4, 9, 16, 21. GND: 1, 12, 13, 24.
+                expectedOL = ['2', '3', '5', '6', '7', '8', '10', '11', '14', '15', '17', '18', '19', '20', '22', '23'];
+            } else {
+                // Console: 2, 3, 10, 11, 14, 15, 22, 23
+                expectedOL = ['2', '3', '10', '11', '14', '15', '22', '23'];
+            }
 
             for (const [pin, val] of Object.entries(data)) {
                 if (val.toUpperCase() === 'OL') {
@@ -165,8 +175,12 @@
                 }
             }
 
-            // Check if ripped off (20+ OL pins out of 24)
-            if (totalOLCount >= 20) {
+            // Check for Ripped Off Port (Most/All pins OL)
+            // If > 20 OLs, likely ripped off or major disconnect
+            // For Dock, if even VBUS is OL, that's bad.
+            // If olPins has entries, it means VBUS or GND is OL (critical)
+
+            if (totalOLCount >= 23) { // 23 or 24 pins OL
                 el.innerHTML = `<strong style="color:var(--accent-red);">RIPPED OFF</strong> <span style="color:var(--text-muted);">(${totalOLCount} OL)</span>`;
             } else if (olPins.length > 0) {
                 el.innerHTML = `<span style="color:var(--accent-red); font-weight:bold;">OL: ${olPins.join(',')}</span>`;

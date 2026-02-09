@@ -30,7 +30,7 @@
                     </span>
                     {% endif %}
                     <span>
-                        {% if unit %}
+                        {% if unit and unit.created_at %}
                         Registered: {{ unit.created_at }}
                         {% else %}
                         Draft Entry
@@ -78,8 +78,6 @@
                                         %}>Console</option>
                                     <option value="Dock" {% if unit and unit.type=='Dock' %}selected{% endif %}>Dock
                                     </option>
-                                    <option value="Accessory" {% if unit and unit.type=='Accessory' %}selected{% endif
-                                        %}>Accessory</option>
                                 </select>
                                 <input type="text" name="model" value="{{ unit.model if unit else 'Nintendo Switch' }}"
                                     placeholder="e.g. Switch V2" class="flex-2 mb-0">
@@ -167,7 +165,7 @@
                 </div>
 
                 <!-- Port Reading -->
-                <div class="diagnosis-section">
+                <div class="diagnosis-section" id="port-reading-section">
                     <div class="diagnosis-section-title"><span>PORT READING (INITIAL)</span></div>
                     <div class="form-group mb-0">
                         <label class="field-label sub">NO BATTERY IDLE MEASUREMENT</label>
@@ -183,7 +181,7 @@
                 </div>
 
                 <!-- Boot Analysis -->
-                <div class="diagnosis-section">
+                <div class="diagnosis-section" id="boot-analysis-section">
                     <div class="diagnosis-section-title"><span>BOOT STAGE ANALYSIS</span></div>
                     <div class="boot-analysis-grid">
                         <div class="analysis-col-method">

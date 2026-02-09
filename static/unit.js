@@ -81,7 +81,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!pinSummary) return;
 
         const data = pinInput.value ? JSON.parse(pinInput.value || '{}') : {};
-        const expectedOL = [2, 3, 10, 11, 14, 15, 22, 23];
+
+        const typeSelect = document.querySelector('select[name="type"]');
+        const isDock = typeSelect && typeSelect.value === 'Dock';
+
+        let expectedOL = [2, 3, 10, 11, 14, 15, 22, 23]; // Default Console
+
+        if (isDock) {
+            // Dock: Only VBUS/GND have readings. Everything else is OL.
+            // VBUS: 4, 9, 16, 21 -> 0.54
+            // GND: 1, 12, 13, 24 -> GND
+            // All others are OL: 
+            expectedOL = [2, 3, 5, 6, 7, 8, 10, 11, 14, 15, 17, 18, 19, 20, 22, 23];
+        }
 
         let olPins = [];
         let shortPins = [];
@@ -188,24 +200,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (olCount > 20) {
             findings.push("USB-C Port likely Ripped Off / Disconnected");
         } else {
+            const typeSelect = document.querySelector('select[name="type"]');
+            const isDock = typeSelect && typeSelect.value === 'Dock';
+
             // Pins A5(5), B5(17) are CC1/CC2
             if (isShort(data['5']) || isShort(data['17'])) {
                 findings.push("Potential M92 IC Short (CC Lines - Pin 5/17)");
             }
 
-            // D+ D- (P13USB) -> Pins 6, 7, 18, 19
-            if (data['6'] === 'OL' || data['7'] === 'OL' || data['18'] === 'OL' || data['19'] === 'OL') {
-                findings.push("Likely Broken Traces / Pads at USB-C Connector (Data Lines OL)");
-            }
+            if (!isDock) {
+                // Console Analysis (Expects Data & CC)
 
-            // CC1/CC2 (M92) -> Pins 5, 20
-            if (data['5'] === 'OL' || data['20'] === 'OL') {
-                findings.push("Check M92 IC / USB-C Port (CC Lines OL)");
-            }
+                // D+ D- (P13USB) -> Pins 6, 7, 18, 19
+                if (data['6'] === 'OL' || data['7'] === 'OL' || data['18'] === 'OL' || data['19'] === 'OL') {
+                    findings.push("Likely Broken Traces / Pads at USB-C Connector (Data Lines OL)");
+                }
 
-            // SBU1/SBU2 (P13USB) -> Pins 8, 17
-            if (data['8'] === 'OL' || data['17'] === 'OL') {
-                findings.push("Check P13USB / Filters (SBU Lines OL)");
+                // CC1/CC2 (M92) -> Pins 5, 20 !!! Pin 20 is other CC
+                if (data['5'] === 'OL' || data['20'] === 'OL') { // Note: 20 is CC2, 17 is SBU2? Check schema. 
+                    // Pin 5 (CC1), Pin 17 (CC2 on B side logic sometimes flipped in breakout boards)
+                    // Standard: A5 (CC1), B5 (CC2) -> Breakouts vary. 
+                    // Let's stick to standard map: 5 & 17 usually checked.
+                    // If previously defined logic used 20, we keep it consistent or fix it.
+                    // Previous code used 20. B8 is SBU2. 
+                    findings.push("Check M92 IC / USB-C Port (CC Lines OL)");
+                }
+
+                // SBU1/SBU2 (P13USB) -> Pins 8, 17 (Wait, 17 is CC2? or SBU2?)
+                // USB-C: A8 (SBU1), B8 (SBU2).
+                // Breakout board mapping: 
+                // Side A: 1-12. Side B: 13-24. 
+                // A5=CC1. A8=SBU1. 
+                // B5=CC2 (Pin 17 if reversed? 24-5+1 = 20? No.)
+                // Pin 17 is B8 (SBU2) in some counts? 
+                // Let's stick to existing logic for now to avoid regress, just gating it.
+                if (data['8'] === 'OL' || data['17'] === 'OL') {
+                    findings.push("Check P13USB / Filters (SBU Lines OL)");
+                }
+            } else {
+                // Dock Analysis
+                // We EXPECT Data/CC to be OL (Power only passthrough for AC handoff logic inside dock?)
+                // Actually Dock Port AC input -> PD Controller.
+                // If VBUS is good, but logic dead, maybe PD. 
+                // For now, just suppressing false positives.
             }
 
             // VBUS Short -> Pin 4, 9, 16, 21
@@ -236,16 +273,32 @@ document.addEventListener('DOMContentLoaded', () => {
             togglePinTester(); // Ensure it's open
         }
 
-        const goodValues = {
-            1: 'GND', 2: 'OL', 3: 'OL', 4: '0.52', 5: '0.54', 6: '0.80', 7: '0.81', 8: '0.75', 9: '0.52', 10: 'OL', 11: 'OL', 12: 'GND',
-            13: 'GND', 14: 'OL', 15: 'OL', 16: '0.52', 17: '0.75', 18: '0.81', 19: '0.80', 20: '0.54', 21: '0.52', 22: 'OL', 23: 'OL', 24: 'GND'
-        };
+        const typeSelect = document.querySelector('select[name="type"]');
+        const isDock = typeSelect && typeSelect.value === 'Dock';
+
+        let goodValues;
+
+        if (isDock) {
+            // Dock specific: VBUS/GND = 0.54, Others = OL
+            // VBUS: 4, 9, 16, 21. GND: 1, 12, 13, 24
+            goodValues = {};
+            // Set defaults to OL first (or handle via loop)
+            for (let i = 1; i <= 24; i++) goodValues[i] = 'OL';
+
+            // Set VBUS/GND
+            [1, 12, 13, 24].forEach(p => goodValues[p] = 'GND');
+            [4, 9, 16, 21].forEach(p => goodValues[p] = '0.54');
+        } else {
+            // Standard Console
+            goodValues = {
+                1: 'GND', 2: 'OL', 3: 'OL', 4: '0.52', 5: '0.54', 6: '0.80', 7: '0.81', 8: '0.75', 9: '0.52', 10: 'OL', 11: 'OL', 12: 'GND',
+                13: 'GND', 14: 'OL', 15: 'OL', 16: '0.52', 17: '0.75', 18: '0.81', 19: '0.80', 20: '0.54', 21: '0.52', 22: 'OL', 23: 'OL', 24: 'GND'
+            };
+        }
 
         pinInputs.forEach(input => {
             const pin = parseInt(input.dataset.pin);
-            if (goodValues[pin]) {
-                input.value = goodValues[pin];
-            }
+            input.value = goodValues[pin] || 'OL';
             updatePinStyle(input);
         });
         saveVisualData();
@@ -254,7 +307,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto Label Logic
     window.autoLabel = function () {
-        fetch('/api/next-label')
+        const typeSelect = document.querySelector('select[name="type"]');
+        let prefix = 'SW';
+        if (typeSelect && typeSelect.value === 'Dock') {
+            prefix = 'DK';
+        }
+
+        fetch(`/api/next-label?prefix=${prefix}`)
             .then(response => response.json())
             .then(data => {
                 if (data.next_label) {
@@ -450,4 +509,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init description on load
     updateMethodDescription();
+    toggleBootAnalysis(); // Initial check
+
+    // Type Change Listener for Boot Analysis Visibility
+    const typeSelect = document.querySelector('select[name="type"]');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', toggleBootAnalysis);
+    }
+
+    function toggleBootAnalysis() {
+        const typeSelect = document.querySelector('select[name="type"]');
+        const bootSection = document.getElementById('boot-analysis-section');
+        const portSection = document.getElementById('port-reading-section');
+
+        if (typeSelect && bootSection && portSection) {
+            if (typeSelect.value === 'Dock') {
+                bootSection.style.display = 'none';
+                portSection.style.display = 'none';
+            } else {
+                bootSection.style.display = 'block';
+                portSection.style.display = 'block';
+            }
+        }
+    }
 });

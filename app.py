@@ -177,27 +177,33 @@ def search():
 
 @app.route('/api/next-label')
 def next_label():
+    prefix = request.args.get('prefix', 'SW').upper()
     db = get_db()
-    # Find all labels starting with SW (case insensitive)
-    cursor = db.execute("SELECT label FROM units WHERE label LIKE 'SW%'")
+    
+    # Find all labels starting with prefix (case insensitive)
+    # Ensure we only match the exact prefix followed by numbers to avoid confusion 
+    # (e.g. if we have SW and SWX, though likely just SW/DK)
+    cursor = db.execute("SELECT label FROM units WHERE label LIKE ?", (f'{prefix}%',))
     rows = cursor.fetchall()
     
     max_num = 0
     for row in rows:
         label = row['label']
-        # Extract number part (SW022 -> 22)
+        # Extract number part
         try:
-            # Remove 'SW' and convert to int
-            num_part = label.upper().replace('SW', '')
-            num = int(num_part)
-            if num > max_num:
-                max_num = num
+            # Remove prefix and convert to int
+            # Verify the start matches to be safe
+            if label.upper().startswith(prefix):
+                num_part = label[len(prefix):]
+                num = int(num_part)
+                if num > max_num:
+                    max_num = num
         except ValueError:
             continue
             
     next_num = max_num + 1
-    # Format as SW023 (3 digits)
-    return jsonify({'next_label': f"SW{next_num:03d}"})
+    # Format as {PREFIX}{003d} -> e.g. SW023, DK005
+    return jsonify({'next_label': f"{prefix}{next_num:03d}"})
 
 @app.route('/api/diagnose-boot', methods=['POST'])
 def diagnose_boot():

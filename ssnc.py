@@ -24,6 +24,7 @@ def check_serial(serial):
     except:
         return {'type': 'Manual Check Needed', 'model': 'Unknown', 'patch_status': 'Unknown'}
 
+    unit_type = "Console"
     model = "Switch V1 (Erista)"
     patch_status = "Unknown"
     
@@ -82,6 +83,11 @@ def check_serial(serial):
         elif prefix_3 == 'XJW':
             model = "Switch Lite"
     
+    elif prefix_3 == 'XFL':
+        unit_type = 'Dock'
+        model = "Switch Dock"
+        patch_status = "N/A"
+
     elif serial.startswith('XT'):
         patch_status = "Patched"
         model = "Switch OLED"
@@ -91,7 +97,7 @@ def check_serial(serial):
         patch_status = "Unknown (Check Manually)"
 
     return {
-        'type': 'Console',
+        'type': unit_type,
         'model': model,
         'patch_status': patch_status
     }
@@ -103,3 +109,4 @@ if __name__ == '__main__':
     print(f"XAJ400643...: {check_serial('XAJ40064380854')['patch_status']}") # Patched
     print(f"XKW100000...: {check_serial('XKW10000000000')['patch_status']}") # Patched
     print(f"XJW100000...: {check_serial('XJW10000000000')['patch_status']}") # Patched
+    print(f"XFL103552...: {check_serial('XFL10355204732')}") # Dock
