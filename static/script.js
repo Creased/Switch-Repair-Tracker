@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = `/unit/${barcode}`;
     }
 
-    function fixQwerty(input) {
+    window.fixQwerty = function (input) {
         // AZERTY <-> QWERTY conversion
         const map = {
             'A': 'Q', 'Q': 'A', 'Z': 'W', 'W': 'Z',
