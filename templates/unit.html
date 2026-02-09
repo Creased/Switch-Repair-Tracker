@@ -93,6 +93,7 @@
 
                 </div>
 
+
                 <!-- Diagnostic Suite -->
                 <!-- USB-C Pin Check -->
                 <div class="diagnosis-section">
@@ -269,6 +270,23 @@
                     </div>
                     <textarea name="notes" class="repair-log-container"
                         placeholder="Detailed history of repairs, parts replaced, and findings...">{{ unit.notes if unit else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Testing Checklist (Collapsible) -->
+            <div class="diagnosis-section" id="testing-checklist-section">
+                <div class="diagnosis-section-title" style="cursor: pointer;" onclick="toggleChecklistSection()">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="checklist-toggle-icon">▶</span>
+                        <span>TESTING CHECKLIST</span>
+                    </div>
+                    <button type="button" id="checklist-action-btn" class="btn btn-sm btn-accent-green">
+                        MARK ALL COMPLETE
+                    </button>
+                </div>
+
+                <div class="checklist-grid" id="checklist-container" style="display: none;">
+                    <!-- Checklist items will be dynamically rendered here -->
                 </div>
             </div>
         </div>

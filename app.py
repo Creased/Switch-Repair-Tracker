@@ -302,6 +302,48 @@ def diagnose_boot():
             
     return jsonify(result)
 
+@app.route('/api/unit/<barcode>/checklist', methods=['GET', 'POST'])
+def checklist_api(barcode):
+    """API endpoint for testing checklist state management"""
+    import json
+    db = get_db()
+    
+    if request.method == 'GET':
+        # Retrieve checklist state
+        unit = db.execute('SELECT testing_checklist FROM units WHERE barcode = ?', (barcode,)).fetchone()
+        
+        if not unit:
+            return jsonify({'error': 'Unit not found'}), 404
+        
+        checklist = {}
+        if unit['testing_checklist']:
+            try:
+                checklist = json.loads(unit['testing_checklist'])
+            except json.JSONDecodeError:
+                checklist = {}
+        
+        return jsonify({'checklist': checklist})
+    
+    elif request.method == 'POST':
+        # Update checklist state
+        data = request.get_json()
+        checklist = data.get('checklist', {})
+        
+        # Verify unit exists
+        unit = db.execute('SELECT id FROM units WHERE barcode = ?', (barcode,)).fetchone()
+        if not unit:
+            return jsonify({'error': 'Unit not found'}), 404
+        
+        # Save checklist as JSON
+        db.execute(
+            'UPDATE units SET testing_checklist = ?, updated_at = CURRENT_TIMESTAMP WHERE barcode = ?',
+            (json.dumps(checklist), barcode)
+        )
+        db.commit()
+        
+        return jsonify({'success': True, 'checklist': checklist})
+
+
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         print("Initializing database...")

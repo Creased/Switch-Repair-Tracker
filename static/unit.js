@@ -532,4 +532,293 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    // Testing Checklist Management
+    const checklistItems = [
+        { key: 'power_on', label: 'Powers On', category: 'hardware' },
+        { key: 'display', label: 'Display (No Dead Pixels)', category: 'hardware' },
+        { key: 'touchscreen', label: 'Touchscreen Responsive', category: 'hardware' },
+        { key: 'buttons', label: 'All Buttons Functional', category: 'hardware' },
+        { key: 'analog_sticks', label: 'Analog Sticks (No Drift)', category: 'hardware' },
+        { key: 'triggers', label: 'Triggers (L/R, ZL/ZR)', category: 'hardware' },
+        { key: 'speakers', label: 'Speakers/Audio Output', category: 'hardware' },
+        { key: 'headphone_jack', label: 'Headphone Jack', category: 'hardware' },
+        { key: 'charging', label: 'Charging (USB-C)', category: 'hardware' },
+        { key: 'battery', label: 'Battery Holds Charge', category: 'hardware' },
+        { key: 'docking', label: 'Docking Functionality', category: 'hardware' },
+        { key: 'joycon_rails', label: 'Joy-Con Rails/Connectors', category: 'hardware' },
+        { key: 'kickstand', label: 'Kickstand', category: 'hardware' },
+        { key: 'boots_to_menu', label: 'Boots to Home Menu', category: 'software' },
+        { key: 'eshop', label: 'eShop Access', category: 'software' },
+        { key: 'wifi', label: 'Wi-Fi Connectivity', category: 'software' },
+        { key: 'game_card', label: 'Game Card Slot', category: 'software' },
+        { key: 'sd_card', label: 'SD Card Slot', category: 'software' },
+        { key: 'bluetooth', label: 'Bluetooth Pairing', category: 'advanced' },
+        { key: 'airplane_mode', label: 'Airplane Mode Toggle', category: 'advanced' },
+        { key: 'sleep_wake', label: 'Sleep/Wake Function', category: 'advanced' },
+        { key: 'fan_operation', label: 'Fan Operation (No Noise)', category: 'advanced' }
+    ];
+
+    async function loadChecklist() {
+        // Extract barcode from URL path (e.g., /unit/XKJ12345)
+        const pathParts = window.location.pathname.split('/');
+        const barcode = pathParts[pathParts.length - 1];
+
+        if (!barcode || barcode === 'unit') return;
+
+        const serial = barcode;
+
+        try {
+            const response = await fetch(`/api/unit/${serial}/checklist`);
+            const data = await response.json();
+            renderChecklist(data.checklist || {});
+        } catch (error) {
+            console.error('Failed to load checklist:', error);
+            renderChecklist({});
+        }
+    }
+
+    function renderChecklist(state) {
+        const container = document.getElementById('checklist-container');
+        if (!container) return;
+
+        container.innerHTML = checklistItems.map(item => `
+            <div class="checklist-item ${state[item.key] ? 'completed' : ''}" 
+                 data-key="${item.key}"
+                 onclick="toggleChecklistItem('${item.key}')">
+                <div class="checklist-checkbox"></div>
+                <span>${item.label}</span>
+            </div>
+        `).join('');
+
+        // Update button state after rendering
+        updateChecklistButton();
+
+        // Auto-expand if checklist has any completed items
+        const completedItems = Object.values(state).filter(Boolean).length;
+        if (completedItems > 0) {
+            const container = document.getElementById('checklist-container');
+            const icon = document.getElementById('checklist-toggle-icon');
+            if (container && icon) {
+                container.style.display = 'grid';
+                icon.textContent = '▼';
+            }
+        }
+    }
+
+    // Update button state based on completion
+    function updateChecklistButton() {
+        const btn = document.getElementById('checklist-action-btn');
+        if (!btn) return;
+
+        const items = document.querySelectorAll('.checklist-item');
+        const completedItems = document.querySelectorAll('.checklist-item.completed');
+
+        if (items.length > 0 && items.length === completedItems.length) {
+            // All complete - show RESET button
+            btn.textContent = 'RESET';
+            btn.className = 'btn btn-sm btn-accent-red';
+            btn.onclick = resetChecklist;
+        } else {
+            // Not all complete - show MARK ALL COMPLETE button
+            btn.textContent = 'MARK ALL COMPLETE';
+            btn.className = 'btn btn-sm btn-accent-green';
+            btn.onclick = markAllTestsComplete;
+        }
+    }
+
+
+
+    async function saveChecklist() {
+        // Extract barcode from URL path
+        const pathParts = window.location.pathname.split('/');
+        const barcode = pathParts[pathParts.length - 1];
+
+        if (!barcode || barcode === 'unit') return;
+
+        const serial = barcode;
+        const items = document.querySelectorAll('.checklist-item');
+        const state = {};
+
+        items.forEach(item => {
+            const key = item.getAttribute('data-key');
+            state[key] = item.classList.contains('completed');
+        });
+
+        try {
+            await fetch(`/api/unit/${serial}/checklist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ checklist: state })
+            });
+        } catch (error) {
+            console.error('Failed to save checklist:', error);
+        }
+    }
+
+    // Load checklist on page load
+    loadChecklist();
+
+    // Attach event listener to checklist action button to prevent fold toggle
+    const checklistActionBtn = document.getElementById('checklist-action-btn');
+    if (checklistActionBtn) {
+        checklistActionBtn.addEventListener('click', function (e) {
+            e.stopPropagation(); // Prevent parent div click from triggering
+            // The actual action (mark all complete or reset) will be called by updateChecklistButton
+        });
+    }
+
+    // Function to toggle checklist visibility based on unit type
+    function toggleChecklistVisibility() {
+        const typeSelect = document.querySelector('select[name="type"]');
+        const checklistSection = document.getElementById('testing-checklist-section');
+
+        if (typeSelect && checklistSection) {
+            if (typeSelect.value === 'Dock') {
+                checklistSection.style.display = 'none';
+            } else {
+                checklistSection.style.display = 'block';
+            }
+        }
+    }
+
+    // Initial check on page load
+    toggleChecklistVisibility();
+
+    // Attach event listener to type dropdown
+    let typeSelectDropdown = document.querySelector('select[name="type"]');
+    if (typeSelectDropdown) {
+        typeSelectDropdown.addEventListener('change', toggleChecklistVisibility);
+    }
 });
+
+// Global function to update button state based on completion
+function updateChecklistButton() {
+    const btn = document.getElementById('checklist-action-btn');
+    if (!btn) return;
+
+    const items = document.querySelectorAll('.checklist-item');
+    const completedItems = document.querySelectorAll('.checklist-item.completed');
+
+    if (items.length > 0 && items.length === completedItems.length) {
+        // All complete - show RESET button
+        btn.textContent = 'RESET';
+        btn.className = 'btn btn-sm btn-accent-red';
+        btn.onclick = resetChecklist;
+    } else {
+        // Not all complete - show MARK ALL COMPLETE button
+        btn.textContent = 'MARK ALL COMPLETE';
+        btn.className = 'btn btn-sm btn-accent-green';
+        btn.onclick = markAllTestsComplete;
+    }
+}
+
+// Global function for toggling checklist items (must be outside DOMContentLoaded for onclick)
+async function toggleChecklistItem(itemKey) {
+    const item = document.querySelector(`.checklist-item[data-key="${itemKey}"]`);
+    if (!item) return;
+
+    item.classList.toggle('completed');
+
+    // Save checklist state
+    const pathParts = window.location.pathname.split('/');
+    const barcode = pathParts[pathParts.length - 1];
+
+    if (!barcode || barcode === 'unit') return;
+
+    const items = document.querySelectorAll('.checklist-item');
+    const state = {};
+
+    items.forEach(item => {
+        const key = item.getAttribute('data-key');
+        state[key] = item.classList.contains('completed');
+    });
+
+    try {
+        await fetch(`/api/unit/${barcode}/checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checklist: state })
+        });
+    } catch (error) {
+        console.error('Failed to save checklist:', error);
+    }
+
+    // Update button state after toggle
+    updateChecklistButton();
+}
+
+// Global function for "Mark All Complete" button
+function markAllTestsComplete() {
+    document.querySelectorAll('.checklist-item').forEach(item => {
+        item.classList.add('completed');
+    });
+
+    // Manual save call
+    const pathParts = window.location.pathname.split('/');
+    const barcode = pathParts[pathParts.length - 1];
+
+    if (barcode && barcode !== 'unit') {
+        const serial = barcode;
+        const items = document.querySelectorAll('.checklist-item');
+        const state = {};
+
+        items.forEach(item => {
+            const key = item.getAttribute('data-key');
+            state[key] = true; // All completed
+        });
+
+        fetch(`/api/unit/${serial}/checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checklist: state })
+        }).catch(error => console.error('Failed to save checklist:', error));
+    }
+
+    // Update button state
+    updateChecklistButton();
+}
+
+// Global function for "Reset" button
+function resetChecklist() {
+    document.querySelectorAll('.checklist-item').forEach(item => {
+        item.classList.remove('completed');
+    });
+
+    // Manual save call
+    const pathParts = window.location.pathname.split('/');
+    const barcode = pathParts[pathParts.length - 1];
+
+    if (barcode && barcode !== 'unit') {
+        const items = document.querySelectorAll('.checklist-item');
+        const state = {};
+
+        items.forEach(item => {
+            const key = item.getAttribute('data-key');
+            state[key] = false; // All unchecked
+        });
+
+        fetch(`/api/unit/${barcode}/checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checklist: state })
+        }).catch(error => console.error('Failed to save checklist:', error));
+    }
+
+    // Update button state
+    updateChecklistButton();
+}
+
+// Global function to toggle checklist section collapse/expand
+function toggleChecklistSection() {
+    const container = document.getElementById('checklist-container');
+    const icon = document.getElementById('checklist-toggle-icon');
+
+    if (container.style.display === 'none') {
+        container.style.display = 'grid';
+        icon.textContent = '▼';
+    } else {
+        container.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
