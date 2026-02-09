@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, jsonify, g, redirect, url_for
 import sqlite3
 import os
-import re
+from diagnostics import DIAGNOSTIC_TABLES, parse_reading
+from ssnc import check_serial
 
 app = Flask(__name__)
 DATABASE = 'repairs.db'
@@ -12,85 +13,6 @@ def get_db():
         db = g._database = sqlite3.connect(DATABASE)
         db.row_factory = sqlite3.Row
     return db
-
-# RetroSix Wiki Based Diagnostic Tables
-DIAGNOSTIC_TABLES = {
-    'battery': [
-        {'range': (0.00, 0.005), 'stage': 'No Power', 'fault': 'Blown Fuse / USB-C Port', 'action': 'Check F1 fuse near USB-C, inspect port pins', 'severity': 'critical'},
-        {'range': (0.005, 0.015), 'stage': 'Sleep Mode', 'fault': 'None (Normal)', 'action': 'Console is in Sleep Mode. Wake it up to test further.', 'severity': 'none'},
-        {'range': (0.015, 0.09), 'stage': 'Stage 1 (Waiting for Battery)', 'fault': 'Battery Detection / PMIC', 'action': 'Check battery connector, MAX77620 communication', 'severity': 'high'},
-        {'range': (0.15, 0.28), 'stage': 'RCM / eMMC Fault', 'fault': 'Missing/Corrupt eMMC or AutoRCM', 'action': 'Test RCM mode, check eMMC seating/soldering', 'severity': 'medium'},
-        {'range': (0.40, 0.55), 'stage': 'Stage 2 (Normal Boot Start)', 'fault': 'Fuel Gauge / Backlight', 'action': 'Check MAX17050, backlight driver if no display', 'severity': 'low'},
-        {'range': (0.70, 5.00), 'stage': 'Normal Operation / Fast Charge', 'fault': 'None (Normal)', 'action': 'System is booting or charging normally', 'severity': 'none'}
-    ],
-    'bench': [
-        {'range': (0.00, 0.006), 'stage': 'Standby / Pre-Trigger', 'fault': 'None (Waiting for Power)', 'action': 'Device is powered but not booted. Short power pins to boot.', 'severity': 'none'},
-        {'range': (0.006, 0.05), 'stage': 'Stuck Early', 'fault': 'Faulty MAX77620', 'action': 'PMIC not starting. Check MAX77620 enable lines.', 'severity': 'high'},
-        {'range': (0.09, 0.13), 'stage': 'Low Boot Draw', 'fault': 'MAX77621 or MAX77812', 'action': 'Check CPU/GPU buck regulators and around NVIDIA SoC.', 'severity': 'high'},
-        {'range': (0.18, 0.22), 'stage': 'RCM / Waiting for eMMC', 'fault': 'eMMC / AutoRCM', 'action': 'Normal draw for RCM. If stuck, check eMMC connection.', 'severity': 'medium'},
-        {'range': (0.40, 0.50), 'stage': 'Mid-Boot Stuck', 'fault': 'Current Limit reached?', 'action': 'Verify 2.0A+ limit on bench supply. Check display init.', 'severity': 'medium'},
-        {'range': (0.20, 0.80), 'stage': 'M92T Loop', 'fault': 'M92T36 Fault', 'action': 'Current jumping 200mA->700mA loop? Replace M92T36.', 'severity': 'high'}
-    ],
-    'bypass': [
-        {'range': (0.00, 0.001), 'stage': 'Bypass Failed', 'fault': 'Open VSYS or Resistor', 'action': 'Check 10K resistor solder to test pads. No current flow.', 'severity': 'critical'},
-        {'range': (0.001, 0.006), 'stage': 'Ready to Boot', 'fault': 'None (Pre-Trigger)', 'action': 'Healthy standby current (1-5mA). Short power pads to boot.', 'severity': 'none'},
-        {'range': (0.006, 0.15), 'stage': 'Low Pull', 'fault': 'PMIC / MAX77621 Fault', 'action': 'Check MAX77621 (CPU/GPU) outputs.', 'severity': 'high'},
-        {'range': (0.15, 0.25), 'stage': 'Stage 1 Active', 'fault': '1st Boot Stage OK', 'action': 'Passed 1st stage. If stuck here, check eMMC/RAM.', 'severity': 'none'},
-        {'range': (0.35, 0.55), 'stage': 'Stage 2 Active', 'fault': '2nd Boot Stage OK', 'action': 'Passed 2nd stage. Console should be booting.', 'severity': 'none'}
-    ],
-    'no_battery': [
-        {'range': (0.00, 0.005), 'stage': 'Dead Charging Path', 'fault': 'F1 Fuse / M92T36 / BQ24193', 'action': 'Check F1 Fuse near USB-C. Verify 5V/15V at M92T36.', 'severity': 'critical'},
-        {'range': (0.005, 0.06), 'stage': 'Healthy Idle', 'fault': 'None (Normal)', 'action': 'PD Negotiation OK. BQ Idle. Perfectly fine measurement waiting for a battery.', 'severity': 'none'},
-        {'range': (0.06, 0.35), 'stage': 'Abnormal Idle Pull', 'fault': 'Partial Short / M92T', 'action': 'Check for heat on M92T36 or BQ caps. Slightly high for idle.', 'severity': 'medium'},
-        {'range': (0.40, 0.60), 'stage': 'BQ Search Activity', 'fault': 'None (Normal)', 'action': 'Good pulse. Charging circuit is actively searching for a battery.', 'severity': 'none'},
-        {'range': (0.60, 5.00), 'stage': 'Severe Power Fault', 'fault': 'Short on VSYS / Tegra', 'action': 'Short detected. Check VSYS rail and Tegra PMIC area.', 'severity': 'critical'}
-    ]
-}
-
-def parse_reading(s):
-    """Parses strings like '15V/0.003A', '0.19A', '5V 0.4A' into (volts, amps)."""
-    if not s: return None, 0.0
-    s = s.lower().strip()
-    
-    volts = None
-    amps = 0.0
-    
-    # specific regex for amps
-    # Look for number followed optionally by space, then 'ma' or 'a'
-    # We prefer the one with 'a' or 'ma' explicitly.
-    # If no 'a'/'ma' found, we assume the whole string (or first number) might be amps if no voltage chars exists?
-    # Actually, simpler: search for pattern `(\d*\.?\d+)\s*(ma|a)`
-    amp_match = re.search(r'(\d*\.?\d+)\s*(ma|a)', s)
-    
-    if amp_match:
-        val = float(amp_match.group(1))
-        unit = amp_match.group(2)
-        if unit == 'ma':
-            amps = val / 1000.0
-        else:
-            amps = val
-    else:
-        # Fallback for plain numbers like "0.19"
-        # Only if it doesn't look like voltage "15V"
-        # If "15V" is the only thing, we shouldn't treat 15 as amps.
-        if 'v' not in s: 
-            try:
-                # simple extract first float
-                amps = float(re.findall(r"[\d.]+", s)[0])
-            except:
-                amps = 0.0
-        else:
-            # Contains V but no A? "15V". Amps is unknown/0.
-            # But maybe they wrote "15V 0.2".
-            # Try to find a number that is NOT the volts number.
-            pass
-
-    # Search for Volts
-    volt_match = re.search(r'(\d*\.?\d+)\s*v', s)
-    if volt_match:
-        volts = float(volt_match.group(1))
-        
-    return volts, amps
 
 @app.teardown_appcontext
 def close_connection(exception):
