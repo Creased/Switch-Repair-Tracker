@@ -1,0 +1,12 @@
+services:
+  switch-fix:
+    build: .
+    image: ghcr.io/creased/switch-fix:latest
+    ports:
+      - 5000:5000/tcp
+    volumes:
+      - ./repairs.db:/app/repairs.db
+    environment:
+      - FLASK_APP=src/app.py
+      - FLASK_RUN_HOST=0.0.0.0
+    restart: unless-stopped

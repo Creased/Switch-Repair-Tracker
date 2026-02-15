@@ -8,8 +8,9 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo Initializing database if needed...
-python -c "from app import init_db; import os; print('Database initialized') if not os.path.exists('repairs.db') else None"
+python -c "from src.app import init_db; import os; print('Database initialized') if not os.path.exists('repairs.db') else None"
 
 echo Starting Switch Repair Tracker...
-python app.py
+set PYTHONPATH=%PYTHONPATH%;%CD%
+python src/app.py
 pause

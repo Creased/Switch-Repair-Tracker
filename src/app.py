@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, jsonify, g, redirect, url_for
 import sqlite3
 import os
-from diagnostics import DIAGNOSTIC_TABLES, parse_reading
-from ssnc import check_serial
+from src.diagnostics import DIAGNOSTIC_TABLES, parse_reading
+from src.ssnc import check_serial
 
 app = Flask(__name__)
 DATABASE = 'repairs.db'
