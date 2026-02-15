@@ -158,6 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (val === 'GND' || val === '0.000') {
             input.style.color = 'var(--pin-value-cyan)';
+        } else if (isShort(val)) {
+            // Explicitly highlight shorts in red
+            input.style.color = 'var(--pin-value-red)';
+            input.style.fontWeight = 'bold';
         } else {
             input.style.color = 'var(--pin-value-green)';
         }
@@ -216,7 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     findings.push("Likely Broken Traces / Pads at USB-C Connector (Data Lines OL)");
                 }
 
-                // CC1/CC2 (M92) -> Pins 5, 20 !!! Pin 20 is other CC
+                // CC1/CC2 (M92) -> Pins 5, 20 !!! Pin 20 is CC2, 17 is SBU2? Check schema. 
+                // Pin 5 (CC1), Pin 17 (CC2 on B side logic sometimes flipped in breakout boards)
+                // Standard: A5 (CC1), B5 (CC2) -> Breakouts vary. 
+                // Let's stick to standard map: 5 & 17 usually checked.
+                // If previously defined logic used 20, we keep it consistent or fix it.
+                // Previous code used 20. B8 is SBU2. 
                 if (data['5'] === 'OL' || data['20'] === 'OL') { // Note: 20 is CC2, 17 is SBU2? Check schema. 
                     // Pin 5 (CC1), Pin 17 (CC2 on B side logic sometimes flipped in breakout boards)
                     // Standard: A5 (CC1), B5 (CC2) -> Breakouts vary. 
@@ -263,7 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!val) return false;
         if (val.toUpperCase() === 'SHORT') return true;
         let num = parseFloat(val);
-        if (!isNaN(num) && num > 0 && num < 0.050) return true;
+        // Warn on anything less than 0.150V (150mV)
+        if (!isNaN(num) && num > 0 && num < 0.150) return true;
         return false;
     }
 
