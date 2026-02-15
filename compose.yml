@@ -1,7 +1,7 @@
 services:
   switch-fix:
     build: .
-    image: ghcr.io/creased/switch-fix:latest
+    image: ghcr.io/creased/switch-repair-tracker:latest
     ports:
       - 5000:5000/tcp
     volumes:
