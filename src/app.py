@@ -134,6 +134,13 @@ def unit_detail(barcode):
 
     unit = db.execute('SELECT * FROM units WHERE barcode = ?', (barcode,)).fetchone()
     
+    # If not found by barcode, check if it matches a label and redirect
+    if not unit:
+        # Some barcodes might be labels (like 'SW023'), let's try to match it
+        unit_by_label = db.execute('SELECT * FROM units WHERE label = ?', (barcode,)).fetchone()
+        if unit_by_label:
+            return redirect(url_for('unit_detail', barcode=unit_by_label['barcode']))
+
     # If not found, try QWERTY-fixed version
     if not unit:
         fixed_barcode = fix_qwerty(barcode)
@@ -170,8 +177,8 @@ def search():
     if not query:
         return jsonify([])
     db = get_db()
-    # Simple search by barcode or model
-    cursor = db.execute("SELECT * FROM units WHERE barcode LIKE ? OR model LIKE ?", ('%'+query+'%', '%'+query+'%'))
+    # Simple search by barcode, model or label
+    cursor = db.execute("SELECT * FROM units WHERE barcode LIKE ? OR model LIKE ? OR label LIKE ?", ('%'+query+'%', '%'+query+'%', '%'+query+'%'))
     results = [dict(row) for row in cursor.fetchall()]
     return jsonify(results)
 
